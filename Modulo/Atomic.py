@@ -9,6 +9,8 @@ class CounterError(Exception):
 
 class Waiter:
     def __init__(self, num: int = 0):
+        if num < 0:
+            raise CounterError("Unexpected Negative Count")
         self.i = num
         self.mutex = Lock()
 
