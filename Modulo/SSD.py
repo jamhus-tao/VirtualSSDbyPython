@@ -54,7 +54,7 @@ class SSD:
 
     def create(self, size: int) -> int:
         """申请虚拟 ssd 为 size 的内存, 返回创建地址"""
-        return self._mapping.alloc(size + self.pagesize - 1 >> self.__page_bits)
+        return self._mapping.alloc(size + self.pagesize - 1 >> self.__page_bits) << self.__page_bits
 
     def copy_in(self, fp: str, address: int) -> None:
         """从本地拷贝到虚拟 ssd, 覆盖目标地址, 大小不足将抛出异常"""
