@@ -87,6 +87,8 @@ class SSD:
         if _pages > self._mapping.occupy_address_block.get[_pageno]:
             raise CopySizeError("Copy space is not enough")
         _waiter = Waiter()
+        with open(fp, "wb"):
+            pass
         for i in range(0, _pages):
             _waiter.inc()
             _flashno, _flashpageno = self._mapping.address(_pageno + i)

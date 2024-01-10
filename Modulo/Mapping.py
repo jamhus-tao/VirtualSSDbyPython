@@ -8,8 +8,8 @@ from Modulo.Exceptions import *
 class Mapping:
     STATUS_FREE = 0x00    # 可分配, 必须为 0x00
     STATUS_OCCUPY = 0x01  # 已分配
-    # STATUS_DYING = 0xFF   # 待擦除
-    # STATUS_BREAK = 0xC0   # 已损坏
+    STATUS_DYING = 0xFF   # 待擦除
+    STATUS_BREAK = 0xC0   # 已损坏
     STATUS_SYS = 0xC1     # 系统用途
 
     def __init__(self, ssd, fp: str = "Mapping"):
