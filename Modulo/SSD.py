@@ -102,6 +102,7 @@ class SSD:
 
     def close(self):
         """关闭 ssd"""
+        self._mapping.close()
         with Waiter(self.flashes) as _waiter:
             for i in range(self.flashes):
                 self.__from_queue[i].put((Flash.INSTRUCT_EXIT, _waiter))
