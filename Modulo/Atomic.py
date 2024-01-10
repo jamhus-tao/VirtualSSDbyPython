@@ -11,18 +11,28 @@ class Waiter:
     def __init__(self, num: int = 0):
         if num < 0:
             raise CounterError("Unexpected Negative Count")
-        self.i = num
-        self.mutex = Lock()
+        self.__i = num
+        self.__mutex = Lock()
 
     def inc(self):
-        with self.mutex:
-            self.i += 1
+        with self.__mutex:
+            self.__i += 1
 
     def dec(self):
-        with self.mutex:
-            if self.i == 0:
+        with self.__mutex:
+            if self.__i == 0:
                 raise CounterError("Unexpected Negative Count")
-            self.i -= 1
+            self.__i -= 1
+
+    def wait(self):
+        while self.__i:
+            pass
 
     def __bool__(self) -> bool:
-        return bool(self.i)
+        return bool(self.__i)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.wait()
