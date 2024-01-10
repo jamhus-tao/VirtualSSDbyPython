@@ -15,7 +15,7 @@ class Flash:
     INSTRUCT_WRITE_INTERVAL = 0x22
     INSTRUCT_ERASE_PAGE = 0x30
     INSTRUCT_ERASE_INTERVAL = 0x32
-    INSTRUCT_EXIT = 0x00
+    INSTRUCT_EXIT = 0xFF
 
     def __init__(self, ssd, from_queue: Queue[tuple], fp: str):
         """

@@ -62,7 +62,7 @@ class SSD:
         _pages = os.stat(fp).st_size + self.pagesize - 1 >> self.__page_bits
         if _pageno not in self._mapping.occupy_address_block:
             raise AccessError("Address {} is inaccessible".format(_pageno))
-        if _pages > self._mapping.occupy_address_block.get[_pageno]:
+        if _pages > self._mapping.occupy_address_block[_pageno]:
             raise CopySizeError("Copy space is not enough")
         with Waiter(_pages) as _waiter:
             for i in range(0, _pages):
@@ -81,7 +81,7 @@ class SSD:
         _pages = size + self.pagesize - 1 >> self.__page_bits
         if _pageno not in self._mapping.occupy_address_block:
             raise AccessError("Address {} is inaccessible".format(_pageno))
-        if _pages > self._mapping.occupy_address_block.get[_pageno]:
+        if _pages > self._mapping.occupy_address_block[_pageno]:
             raise CopySizeError("Copy space is not enough")
         with open(fp, "wb"):
             pass

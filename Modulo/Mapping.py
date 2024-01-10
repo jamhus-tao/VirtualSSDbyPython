@@ -34,7 +34,7 @@ class Mapping:
 
         os.chdir(ssd.fp)
         if not os.path.exists(self.fp):
-            self.__init_mapping()
+            self._init_mapping()
 
         self.__load_mapping()
 
@@ -137,7 +137,7 @@ class Mapping:
         with self.__rwlock.wlock():
             self.__dump_mapping()
 
-    def __init_mapping(self):
+    def _init_mapping(self):
         """
         初始化映射文件, 映射文件格式为 (Bytes):
         0 ~ address_tot: 地址状态表, 状态由 STATUS_XXX 定义
