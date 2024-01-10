@@ -25,7 +25,7 @@ class Flash:
         :param fp: 创建的 flash 的路径, 如果 flash 已存在则直接打开
         """
         self.fp = fp
-        self.__from_queue = from_queue
+        self._queue = from_queue
         self.size = ssd.size // ssd.flashes  # ssd 保证可以整除
         self.pagesize = ssd.pagesize
         self.__page_mask = self.pagesize - 1
@@ -38,13 +38,7 @@ class Flash:
 
         self.file = open(self.fp, "rb+")
 
-        self.listener()
-
-    def listener(self) -> None:
-        """
-        伺服进程. 处理来自 SSD 的 flash 调用请求
-        """
-        _IS = {
+        self.__instruct = {
             self.INSTRUCT_READ_PAGE: self.__read,
             self.INSTRUCT_READ_INTO_FILE: self.__read_to_file,
             self.INSTRUCT_READ_INTERVAL: self.__read_pages,
@@ -54,8 +48,15 @@ class Flash:
             self.INSTRUCT_ERASE_PAGE: self.__erase,
             self.INSTRUCT_ERASE_INTERVAL: self.__erase_pages,
         }
+
+        self.listener()
+
+    def listener(self) -> None:
+        """
+        伺服进程. 处理来自 SSD 的 flash 调用请求
+        """
         while True:
-            _msg = self.__from_queue.get()  # {instruct, receiver(to receive return), payloads...}
+            _msg = self._queue.get()  # {instruct, receiver(to receive return), payloads...}
             _receiver = _msg[1]
             if _msg[0] == self.INSTRUCT_EXIT:
                 if isinstance(_receiver, Waiter):
@@ -64,7 +65,7 @@ class Flash:
                     _receiver.put(None)
                 self.close()
                 return
-            _data = _IS.get(_msg[0], lambda *args, **kwargs: None)(*_msg[2:])
+            _data = self.__instruct.get(_msg[0], lambda *args, **kwargs: None)(*_msg[2:])
             if isinstance(_receiver, Waiter):
                 _receiver.dec()
             elif isinstance(_receiver, Queue):
