@@ -36,3 +36,58 @@ class Waiter:
 
     def __exit__(self, *args):
         self.wait()
+
+
+class RWLock:
+    class __RLock:
+        def __init__(self, rwlock: Lock):
+            self.__global = rwlock
+            self.__mutex = Lock()
+            self.__i = 0
+
+        def acquire(self):
+            with self.__mutex:
+                if not self.__i:
+                    self.__global.acquire()
+                self.__i += 1
+
+        def release(self):
+            with self.__mutex:
+                if not self.__i:
+                    raise CounterError("Unexpected Negative Count")
+                self.__i -= 1
+                if not self.__i:
+                    self.__global.release()
+
+        def __enter__(self):
+            return self.acquire()
+
+        def __exit__(self, *args):
+            self.release()
+
+    class __WLock:
+        def __init__(self, rwlock: Lock):
+            self.__global = rwlock
+
+        def acquire(self):
+            self.__global.acquire()
+
+        def release(self):
+            self.__global.release()
+
+        def __enter__(self):
+            return self.acquire()
+
+        def __exit__(self, *args):
+            self.release()
+
+    def __init__(self):
+        self.__global = Lock()
+        self.__rlock = self.__RLock(self.__global)
+        self.__wlock = self.__WLock(self.__global)
+
+    def rlock(self):
+        return self.__rlock
+
+    def wlock(self):
+        return self.__wlock
