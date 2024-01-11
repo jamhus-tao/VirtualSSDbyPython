@@ -4,8 +4,9 @@ from threading import Thread
 import os
 import time
 from Modulo.SSD import SSD
+from Modulo.Showing import ShowingWrapper
 
-client_handler_queue = []
+client_handler_pool = []
 
 
 def copy_in(fp):
@@ -78,11 +79,11 @@ def start_server():
         li = pickle.loads(li)
 
         client_handler = Thread(target=work, args=(li, client_socket))
-        client_handler_queue.append(client_handler)
+        client_handler_pool.append(client_handler)
         client_handler.start()
 
         if li[0] == 7:
-            for client_handler in client_handler_queue:
+            for client_handler in client_handler_pool:
                 client_handler.join()
 
             return
@@ -100,7 +101,8 @@ if __name__ == "__main__":
         Dict = {}
 
     ssd = SSD("E:/VirtualSSD", (64 << 30), 8, (4 << 10))
-    start_server()
+    with ShowingWrapper(ssd._mapping):
+        start_server()
     ssd.close()
 
     with open(path + "\\dict.bin", "wb") as file:
