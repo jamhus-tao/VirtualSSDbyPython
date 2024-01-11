@@ -3,7 +3,8 @@ import pickle
 from threading import Thread
 import os
 from Modulo.SSD import SSD
-from Modulo.Showing import ShowingWrapper
+
+PATH = "E:/VirtualSSD"
 
 
 class Server:
@@ -12,8 +13,9 @@ class Server:
         self.__path = _path
         # print(self.__path)
 
-        if os.path.exists(os.path.join(self.__path, "dict.bin")):
-            with open(self.__path + "\\dict.bin", "rb") as file:
+        _file_path = os.path.join(self.__path, "dict.bin")
+        if os.path.exists(_file_path):
+            with open(_file_path, "rb") as file:
                 self.__Dict = pickle.loads(file.read())
                 # print(Dict)
         else:
@@ -130,11 +132,11 @@ class Server:
         if not os.path.exists(self.__path):
             os.mkdir(self.__path)
 
-        with open(self.__path + "\\dict.bin", "wb") as w_file:
+        _file_path = os.path.join(self.__path, "dict.bin")
+        with open(_file_path, "wb") as w_file:
             w_file.write(pickle.dumps(self.__Dict))
 
 
 if __name__ == "__main__":
-    path = os.path.abspath("data")
-    ssd = SSD("E:/VirtualSSD", (64 << 30), 8, (4 << 10))
-    Server(ssd, path)
+    ssd = SSD(PATH, (64 << 30), 8, (4 << 10))
+    Server(ssd, PATH)
