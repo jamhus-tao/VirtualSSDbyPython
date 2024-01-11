@@ -8,11 +8,11 @@ from Modulo.Exceptions import *
 
 class Flash:
     INSTRUCT_READ_PAGE = 0x10
-    INSTRUCT_READ_INTO_FILE = 0x11
-    INSTRUCT_READ_INTERVAL = 0x12
+    INSTRUCT_READ_INTERVAL = 0x11
+    INSTRUCT_READ_INTO_FILE = 0x12
     INSTRUCT_WRITE_PAGE = 0x20
-    INSTRUCT_WRITE_FROM_FILE = 0x21
-    INSTRUCT_WRITE_INTERVAL = 0x22
+    INSTRUCT_WRITE_INTERVAL = 0x21
+    INSTRUCT_WRITE_FROM_FILE = 0x22
     INSTRUCT_ERASE_PAGE = 0x30
     INSTRUCT_ERASE_INTERVAL = 0x32
     INSTRUCT_EXIT = 0xFF
@@ -25,6 +25,7 @@ class Flash:
         :param fp: 创建的 flash 的路径, 如果 flash 已存在则直接打开
         """
         self.fp = fp
+        self.ssd = ssd
         self._queue = from_queue
         self.size = ssd.size // ssd.flashes  # ssd 保证可以整除
         self.pagesize = ssd.pagesize
@@ -94,17 +95,6 @@ class Flash:
         self.file.seek(pageno << self.__page_bits, 0)
         return self.file.read(self.pagesize)
 
-    def __read_to_file(self, pageno: int, fp: str, sk: int) -> None:
-        """
-        读取单一页, 输出文件
-        :param pageno: 页索引
-        :param fp: 输出文件
-        :param sk: 文件偏移
-        """
-        with open(fp, "rb+") as _file:
-            _file.seek(sk)
-            _file.write(self.__read(pageno))
-
     def __read_pages(self, pageno: int, pages: int) -> bytes:
         """
         读取连续页
@@ -118,6 +108,21 @@ class Flash:
         self.file.seek(pageno << self.__page_bits, 0)
         return self.file.read(pages << self.__page_bits)
 
+    def __read_to_file(self, pageno: int, pages: int, fp: str, sk: int) -> None:
+        """
+        读取单一页, 输出文件
+        :param pageno: 页索引
+        :param pages: 页数
+        :param fp: 输出文件
+        :param sk: 文件偏移
+        """
+        with open(fp, "rb+") as _file:
+            # _file.seek(sk, 0)
+            for i in range(pages):
+                _file.seek(sk + (i * self.ssd.flashes << self.__page_bits), 0)
+                _file.write(self.__read(pageno + i))
+                # _file.seek(self.ssd.flashes << self.__page_bits, 1)
+
     def __write(self, data: bytes, pageno: int) -> None:
         """
         覆盖单一页, 自动截断
@@ -128,17 +133,6 @@ class Flash:
             raise OutOfBoundError("Access out of bounds: pageno [{}, {})".format(pageno, pageno + 1))
         self.file.seek(pageno << self.__page_bits, 0)
         self.file.write(self.__bytes_resize(data, self.pagesize))
-
-    def __write_from_file(self, fp: str, sk: int, pageno: int) -> None:
-        """
-        覆盖单一页, 来自文件
-        :param fp: 读取文件
-        :param sk: 文件偏移
-        :param pageno: 页索引
-        """
-        with open(fp, "rb") as _file:
-            _file.seek(sk, 0)
-            self.__write(_file.read(self.pagesize), pageno)
 
     def __write_pages(self, data: bytes, pageno: int) -> None:
         """
@@ -154,6 +148,21 @@ class Flash:
         self.file.write(self.__bytes_resize(
             data, len(data) + self.pagesize - 1 >> self.__page_bits << self.__page_bits
         ))
+
+    def __write_from_file(self, fp: str, sk: int, pageno: int, pages: int) -> None:
+        """
+        覆盖单一页, 来自文件
+        :param fp: 读取文件
+        :param sk: 文件偏移
+        :param pageno: 页索引
+        :param pages: 页数
+        """
+        with open(fp, "rb") as _file:
+            # _file.seek(sk, 0)
+            for i in range(pages):
+                _file.seek(sk + (i * self.ssd.flashes << self.__page_bits), 0)
+                self.__write(_file.read(self.pagesize), pageno + i)
+                # _file.seek(self.ssd.flashes << self.__page_bits, 1)
 
     def __erase(self, pageno: int) -> None:
         """
