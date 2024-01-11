@@ -47,3 +47,19 @@ class showing:
         ani = FuncAnimation(self.fig, self.update, frames=100, interval=3000, blit=False, repeat=False)  # 创建动画效果
         plt.grid()
         plt.show()
+
+
+class ShowingWrapper:
+    def __init__(self, mapping: Mapping.Mapping):
+        """图形界面启动器"""
+        self.__showing = showing(mapping)
+        pass
+
+    def __wrapper_thread(self, event: Event):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, *args):
+        pass
