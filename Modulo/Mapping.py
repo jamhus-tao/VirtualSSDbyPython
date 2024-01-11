@@ -2,6 +2,7 @@ import os
 
 from Modulo.Exceptions import *
 from Modulo.DataStruct import SortedMultiDict
+from Modulo.Atomic import RWLock
 
 
 class Mapping:
@@ -23,16 +24,18 @@ class Mapping:
         self.address_len = self.__count_bits(self.address_tot) + 7 >> 3
 
         self.free_address_block = dict()  # {address: block_size}
-        self._free_address_block_r = dict()  # {after_tail_address: block_size}
-        self._free_blocks_dict = SortedMultiDict()  # {block_size: [address...]} 支持二分查找
+        self.__free_address_block_r = dict()  # {after_tail_address: block_size}
+        self.__free_blocks_dict = SortedMultiDict()  # {block_size: [address...]} 支持二分查找
 
         self.occupy_address_block = dict()  # {address: block_size}
+
+        self.__rwlock = RWLock()
 
         os.chdir(ssd.fp)
         if not os.path.exists(self.fp):
             self._init_mapping()
 
-        self._load_mapping()
+        self.__load_mapping()
 
     def address(self, pageno: int) -> tuple[int, int]:
         """
@@ -40,9 +43,10 @@ class Mapping:
         :param pageno: 地址
         :return: (flash 编号, flash 地址)
         """
-        if self.mapping[pageno] != self.STATUS_OCCUPY:
-            raise AccessError("Address {} is inaccessible".format(pageno))
-        return pageno % self.ssd.flashes, pageno // self.ssd.flashes  # real address 可以直接计算得出
+        with self.__rwlock.rlock():
+            if self.mapping[pageno] != self.STATUS_OCCUPY:
+                raise AccessError("Address {} is inaccessible".format(pageno))
+            return pageno % self.ssd.flashes, pageno // self.ssd.flashes  # real address 可以直接计算得出
 
     def alloc(self, pages: int) -> int:
         """
@@ -50,69 +54,72 @@ class Mapping:
         :param pages: 页数
         :return: 地址
         """
-        try:
-            # 获取申请 address
-            if pages <= 0:
-                raise AllocError("Number of pages should be positive")
-            _block_size, _address = self._free_blocks_dict.pop_ge(pages)
+        with self.__rwlock.wlock():
+            try:
+                # 获取申请 address
+                if pages <= 0:
+                    raise AllocError("Number of pages should be positive")
+                _block_size, _address = self.__free_blocks_dict.pop_ge(pages)
 
-            # 更新 mapping
-            for i in range(pages):
-                self.mapping[_address + i] = self.STATUS_OCCUPY
+                # 更新 mapping
+                for i in range(pages):
+                    self.mapping[_address + i] = self.STATUS_OCCUPY
 
-            # 维护 free blocks
-            _new_block_size = _block_size - pages
-            self.free_address_block.pop(_address)
-            if _new_block_size:
-                self.free_address_block[_address + pages] = _new_block_size
-                self._free_address_block_r[_address + _block_size] = _new_block_size
-                self._free_blocks_dict.add(_new_block_size, _address + pages)
-            else:
-                self._free_address_block_r.pop(_address + _block_size)
+                # 维护 free blocks
+                _new_block_size = _block_size - pages
+                self.free_address_block.pop(_address)
+                if _new_block_size:
+                    self.free_address_block[_address + pages] = _new_block_size
+                    self.__free_address_block_r[_address + _block_size] = _new_block_size
+                    self.__free_blocks_dict.add(_new_block_size, _address + pages)
+                else:
+                    self.__free_address_block_r.pop(_address + _block_size)
 
-            # 维护 occupy blocks
-            self.occupy_address_block[_address] = pages
+                # 维护 occupy blocks
+                self.occupy_address_block[_address] = pages
 
-            return _address
+                return _address
 
-        except IndexError:
-            raise AllocError("No enough space to alloc")
+            except IndexError:
+                raise AllocError("No enough space to alloc")
 
     def free(self, pageno: int) -> None:
         """
         释放 ssd 空间, 释放空间的大小自动计算
         :param pageno: 空间地址
         """
-        # 获取释放空间大小, 同时维护 occupy blocks
-        if pageno not in self.occupy_address_block:
-            raise AccessError("Address {} is inaccessible".format(pageno))
-        _pages = self.occupy_address_block.pop(pageno)
+        with self.__rwlock.wlock():
+            # 获取释放空间大小, 同时维护 occupy blocks
+            if pageno not in self.occupy_address_block:
+                raise AccessError("Address {} is inaccessible".format(pageno))
+            _pages = self.occupy_address_block.pop(pageno)
 
-        # 更新 mapping
-        for i in range(_pages):
-            self.mapping[pageno + i] = self.STATUS_FREE
+            # 更新 mapping
+            for i in range(_pages):
+                self.mapping[pageno + i] = self.STATUS_FREE
 
-        # 维护 free blocks
-        _st, _ed = pageno, pageno + _pages
-        # # 搜索前向拓展并移除
-        if _st in self._free_address_block_r:
-            _block_size = self._free_address_block_r.pop(_st)
-            self._free_blocks_dict.pop(_block_size)
-            _st -= _block_size
-        # # 搜索后向拓展并移除
-        if _ed in self.free_address_block:
-            _block_size = self.free_address_block.pop(_ed)
-            self._free_blocks_dict.pop(_block_size)
-            _ed += _block_size
-        # # 合并前向和后向拓展
-        _block_size = _ed - _st
-        self.free_address_block[_st] = _block_size
-        self._free_address_block_r[_ed] = _block_size
-        self._free_blocks_dict.add(_block_size, _st)
+            # 维护 free blocks
+            _st, _ed = pageno, pageno + _pages
+            # # 搜索前向拓展并移除
+            if _st in self.__free_address_block_r:
+                _block_size = self.__free_address_block_r.pop(_st)
+                self.__free_blocks_dict.pop(_block_size)
+                _st -= _block_size
+            # # 搜索后向拓展并移除
+            if _ed in self.free_address_block:
+                _block_size = self.free_address_block.pop(_ed)
+                self.__free_blocks_dict.pop(_block_size)
+                _ed += _block_size
+            # # 合并前向和后向拓展
+            _block_size = _ed - _st
+            self.free_address_block[_st] = _block_size
+            self.__free_address_block_r[_ed] = _block_size
+            self.__free_blocks_dict.add(_block_size, _st)
 
     def close(self):
         """关闭 mapping"""
-        self._dump_mapping()
+        with self.__rwlock.wlock():
+            self.__dump_mapping()
 
     def _init_mapping(self):
         """
@@ -135,7 +142,7 @@ class Mapping:
                 self.__int2bytes(self.address_tot - self.ssd.flashes)
             )  # {address = ssd.flashes, block_size = address_tot}
 
-    def _load_mapping(self):
+    def __load_mapping(self):
         """读取 mapping"""
         with open(self.fp, "rb") as _file:
             self.mapping = bytearray(_file.read(self.address_tot))
@@ -148,12 +155,12 @@ class Mapping:
                 _block_size = self.__bytes2int(__[self.address_len + 1:])
                 if _code == self.STATUS_FREE:
                     self.free_address_block[_address] = _block_size
-                    self._free_address_block_r[_address + _block_size] = _block_size
-                    self._free_blocks_dict.add(_block_size, _address)
+                    self.__free_address_block_r[_address + _block_size] = _block_size
+                    self.__free_blocks_dict.add(_block_size, _address)
                 elif _code == self.STATUS_OCCUPY:
                     self.occupy_address_block[_address] = _block_size
 
-    def _dump_mapping(self):
+    def __dump_mapping(self):
         """保存 mapping"""
         with open(self.fp, "wb") as _file:
             _file.write(self.mapping)
