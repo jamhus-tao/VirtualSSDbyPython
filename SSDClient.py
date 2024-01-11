@@ -2,7 +2,18 @@ import socket
 import pickle
 import os
 import sys
-import shutil
+
+
+class IO:
+    @staticmethod
+    def input_int(s: str = "") -> int:
+        while True:
+            _x = input(s)
+            try:
+                _x = int(_x)
+                return _x
+            except Exception as e:
+                print(f"Error:{e},请重新输入")
 
 
 def send_request():
@@ -30,12 +41,12 @@ def send_request():
 > """)
     if p == "1":
         name = input("请输入新建文件的文件名：\n> ")
-        size = input("请输入新建文件的大小：\n> ")
+        size = IO.input_int("请输入新建文件的大小：\n> ")
 
         client_socket.send(pickle.dumps([1, name, size]))
 
     elif p == "2":
-        address = int(input("请输入删除的起始地址：\n> "))
+        address = IO.input_int("请输入删除的起始地址：\n> ")
         client_socket.send(pickle.dumps([2, address]))
 
     elif p == "3":
@@ -47,7 +58,13 @@ def send_request():
         client_socket.send(pickle.dumps([3, fp]))
 
     elif p == "4":
-        client_socket.send(pickle.dumps([4]))
+        address = IO.input_int("请输入硬盘中被拷贝文件的起始地址：\n> ")
+        fp = input("请输入拷出文件夹的路径：\n> ")
+        if fp[0] == "\"" and fp[-1] == "\"":
+            fp = fp[1:-1]
+
+        fp = os.path.abspath(fp)
+        client_socket.send(pickle.dumps([4, address, fp]))
 
     elif p == "5":
         client_socket.send(pickle.dumps([5]))

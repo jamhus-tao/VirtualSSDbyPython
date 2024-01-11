@@ -10,23 +10,30 @@ client_handler_pool = []
 
 
 def copy_in(fp):
-    address = ssd.create(os.stat(fp).st_size)
+    size = os.stat(fp).st_size
+    address = ssd.create(size)
     ssd.copy_in(fp, address)
-    return "success"
+    Dict[address] = (os.path.basename(fp), size)
+    # print(os.path.basename(fp))
+    return "复制成功"
+
+
+def copy_out(address, fp):
+    ssd.copy_out(address, os.path.join(fp, Dict[address][0]), Dict[address][1])
+    return "复制成功"
 
 
 def work(li, client_socket):
 
-    result = "Unknown Error"
     if li[0] == 1:
         address = ssd.create(li[2])
-        Dict[address] = li[1]
+        Dict[address] = (li[1], li[2])
         result = "创建成功"
 
     elif li[0] == 2:
         try:
             ssd.delete(li[1])
-            result = "success"
+            result = "删除成功"
         except Exception as e:
             result = "Error: " + str(e)
 
@@ -37,10 +44,19 @@ def work(li, client_socket):
             result = "Error: " + str(e)
 
     elif li[0] == 4:
-        pass
+        try:
+            result = copy_out(li[1], li[2])
+        except Exception as e:
+            result = "Error: " + str(e)
 
     elif li[0] == 5:
-        result = ssd.list()
+        origin_list = ssd.list()
+        result = "{:<20}{:<20}{:<20}\n".format("begin", "name", "size")
+        for address, __ in origin_list:
+            result += "{:<20}{:<20}{:<20}\n".format(str(address), Dict[address][0], str(Dict[address][1]))
+
+        if not origin_list:
+            result += "(empty)\n"
 
     elif li[0] == 7:
         client_socket.send(pickle.dumps("已发出关闭指令"))
@@ -89,6 +105,14 @@ def start_server():
             return
 
 
+def write_dict():
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    with open(path + "\\dict.bin", "wb") as w_file:
+        w_file.write(pickle.dumps(Dict))
+
+
 if __name__ == "__main__":
     path = os.path.abspath("data")
     # print(path)
@@ -96,14 +120,13 @@ if __name__ == "__main__":
     if os.path.exists(os.path.join(path, "dict.bin")):
         with open(path + "\\dict.bin", "rb") as file:
             Dict = pickle.loads(file.read())
-            print(Dict)
+            # print(Dict)
     else:
         Dict = {}
 
     ssd = SSD("E:/VirtualSSD", (64 << 30), 8, (4 << 10))
     with ShowingWrapper(ssd._mapping):
         start_server()
-    ssd.close()
 
-    with open(path + "\\dict.bin", "wb") as file:
-        file.write(pickle.dumps(Dict))
+    ssd.close()
+    write_dict()
