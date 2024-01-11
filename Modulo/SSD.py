@@ -64,16 +64,24 @@ class SSD:
             raise AccessError("Address {} is inaccessible".format(_pageno))
         if _pages > self._mapping.occupy_address_block[_pageno]:
             raise CopySizeError("Copy space is not enough")
-        with Waiter(_pages) as _waiter:
-            for i in range(0, _pages):
+        _tasks = [[]] * self.flashes
+        with Waiter() as _waiter:
+            for i in range(_pages):
                 _flashno, _flashpageno = self._mapping.address(_pageno + i)
-                self.__from_queue[_flashno].put((
-                    Flash.INSTRUCT_WRITE_FROM_FILE,
-                    _waiter,
-                    fp,
-                    i << self.__page_bits,
-                    _flashpageno,
-                ))
+                if not _tasks[_flashno]:
+                    _tasks[_flashno] = [i, _flashpageno, 0]
+                    _waiter.inc()
+                _tasks[_flashno][2] += 1
+            for i in range(self.flashes):
+                if _tasks[_flashno]:
+                    self.__from_queue[i].put((
+                        Flash.INSTRUCT_WRITE_FROM_FILE,
+                        _waiter,
+                        fp,
+                        _tasks[i][0] << self.__page_bits,
+                        _tasks[i][1],
+                        _tasks[i][2],
+                    ))
 
     def copy_out(self, address: int, fp: str, size: int) -> None:
         """从虚拟 ssd 拷贝到本地, 必须指定本地路径和本地文件大小"""
@@ -85,16 +93,24 @@ class SSD:
             raise CopySizeError("Copy space is not enough")
         with open(fp, "wb"):
             pass
-        with Waiter(_pages) as _waiter:
-            for i in range(0, _pages):
+        _tasks = [[]] * self.flashes
+        with Waiter() as _waiter:
+            for i in range(_pages):
                 _flashno, _flashpageno = self._mapping.address(_pageno + i)
-                self.__from_queue[_flashno].put((
-                    Flash.INSTRUCT_READ_INTO_FILE,
-                    _waiter,
-                    _flashpageno,
-                    fp,
-                    i << self.__page_bits,
-                ))
+                if not _tasks[_flashno]:
+                    _tasks[_flashno] = [i, _flashpageno, 0]
+                    _waiter.inc()
+                _tasks[_flashno][2] += 1
+            for i in range(self.flashes):
+                if _tasks[i]:
+                    self.__from_queue[i].put((
+                        Flash.INSTRUCT_READ_INTO_FILE,
+                        _waiter,
+                        _tasks[i][1],
+                        _tasks[i][2],
+                        fp,
+                        _tasks[i][0] << self.__page_bits,
+                    ))
 
     def delete(self, address: int) -> None:
         """释放虚拟 ssd 目标地址"""
