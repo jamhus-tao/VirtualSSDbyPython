@@ -2,131 +2,139 @@ import socket
 import pickle
 from threading import Thread
 import os
-import time
 from Modulo.SSD import SSD
 from Modulo.Showing import ShowingWrapper
 
-client_handler_pool = []
 
+class Server:
+    def __init__(self, _ssd, _path):
+        self.__ssd = _ssd
+        self.__path = _path
+        # print(self.__path)
 
-def copy_in(fp):
-    size = os.stat(fp).st_size
-    address = ssd.create(size)
-    ssd.copy_in(fp, address)
-    Dict[address] = (os.path.basename(fp), size)
-    # print(os.path.basename(fp))
-    return "复制成功"
+        if os.path.exists(os.path.join(self.__path, "dict.bin")):
+            with open(self.__path + "\\dict.bin", "rb") as file:
+                self.__Dict = pickle.loads(file.read())
+                # print(Dict)
+        else:
+            self.__Dict = {}
 
+        self.__start_server()
 
-def copy_out(address, fp):
-    ssd.copy_out(address, os.path.join(fp, Dict[address][0]), Dict[address][1])
-    return "复制成功"
+    def __start_server(self):
+        _host = "127.0.0.1"
+        _port = 5555
 
+        _server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _server_socket.bind((_host, _port))
 
-def work(li, client_socket):
+        # 最多监听十个连接。
+        _server_socket.listen(10)
+        print(f"Server listening on {_host}:{_port}")
 
-    if li[0] == 1:
-        address = ssd.create(li[2])
-        Dict[address] = (li[1], li[2])
-        result = "创建成功"
+        _message = [(0, 0)]
+        _cnt = 0
 
-    elif li[0] == 2:
-        try:
-            ssd.delete(li[1])
-            result = "删除成功"
-        except Exception as e:
-            result = "Error: " + str(e)
+        self.__client_handler_pool = []
+        while True:
+            _client_socket, _client_address = _server_socket.accept()
+            print(f"Accepted connection from {_client_address}")
 
-    elif li[0] == 3:
-        try:
-            result = copy_in(li[1])
-        except Exception as e:
-            result = "Error: " + str(e)
+            _cnt = _cnt + 1
+            _client_handler = Thread(target=self.__work, args=(_client_socket, _message, _cnt))
+            self.__client_handler_pool.append(_client_handler)
+            _client_handler.start()
 
-    elif li[0] == 4:
-        try:
-            result = copy_out(li[1], li[2])
-        except Exception as e:
-            result = "Error: " + str(e)
+            while _message[-1][0] != _cnt:
+                continue
 
-    elif li[0] == 5:
-        origin_list = ssd.list()
-        result = "{:<20}{:<20}{:<20}\n".format("begin", "name", "size")
-        for address, __ in origin_list:
-            result += "{:<20}{:<20}{:<20}\n".format(str(address), Dict[address][0], str(Dict[address][1]))
+            if _message[-1][1] == 7:
+                for _client_handler in self.__client_handler_pool:
+                    _client_handler.join()
 
-        if not origin_list:
-            result += "(empty)\n"
+                return
 
-    elif li[0] == 7:
-        client_socket.send(pickle.dumps("已发出关闭指令"))
-        client_socket.close()
-        return
+    def __work(self, _client_socket, _message, _cnt):
+        _li = _client_socket.recv(1024)
 
-    else:
-        result = "未知指令"
-
-    # 发送结果给客户端
-    client_socket.send(pickle.dumps(result))
-    client_socket.close()
-    return
-
-
-def start_server():
-    host = "127.0.0.1"
-    port = 5555
-
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-
-    # 最多监听十个连接。
-    server_socket.listen(10)
-
-    print(f"Server listening on {host}:{port}")
-
-    while True:
-        client_socket, client_address = server_socket.accept()
-        print(f"Accepted connection from {client_address}")
-
-        li = client_socket.recv(1024)
-        if not li:
-            continue
-
-        li = pickle.loads(li)
-
-        client_handler = Thread(target=work, args=(li, client_socket))
-        client_handler_pool.append(client_handler)
-        client_handler.start()
-
-        if li[0] == 7:
-            for client_handler in client_handler_pool:
-                client_handler.join()
-
+        # 建立连接后，如果客户端在发送信息之前的一瞬间被关闭，则会得到一个空的 li
+        if not _li:
+            _message.append((_cnt, 0))
             return
 
+        _li = pickle.loads(_li)
+        _message.append((_cnt, _li[0]))
 
-def write_dict():
-    if not os.path.exists(path):
-        os.mkdir(path)
+        if _li[0] == 1:
+            _address = self.__ssd.create(_li[2])
+            self.__Dict[_address] = (_li[1], _li[2])
+            _result = "创建成功"
 
-    with open(path + "\\dict.bin", "wb") as w_file:
-        w_file.write(pickle.dumps(Dict))
+        elif _li[0] == 2:
+            try:
+                self.__ssd.delete(_li[1])
+                _result = "删除成功"
+            except Exception as e:
+                _result = "Error: " + str(e)
+
+        elif _li[0] == 3:
+            try:
+                _result = self.__copy_in(_li[1])
+            except Exception as e:
+                _result = "Error: " + str(e)
+
+        elif _li[0] == 4:
+            try:
+                _result = self.__copy_out(_li[1], _li[2])
+            except Exception as e:
+                _result = "Error: " + str(e)
+
+        elif _li[0] == 5:
+            _origin_list = self.__ssd.list()
+            _result = "{:<20}{:<20}{:<20}\n".format("begin", "name", "size")
+            for _address, __ in _origin_list:
+                _result += "{:<20}{:<20}{:<20}\n".format(str(_address), self.__Dict[_address][0],
+                                                         str(self.__Dict[_address][1]))
+
+            if not _origin_list:
+                _result += "(empty)\n"
+
+        elif _li[0] == 7:
+            self.__ssd.close()
+            self.__write_dict()
+            _client_socket.send(pickle.dumps("服务端已关闭"))
+            _client_socket.close()
+            return
+
+        else:
+            _result = "未知指令"
+
+        # 发送结果给客户端
+        _client_socket.send(pickle.dumps(_result))
+        _client_socket.close()
+        return
+
+    def __copy_in(self, _fp):
+        _size = os.stat(_fp).st_size
+        _address = self.__ssd.create(_size)
+        self.__ssd.copy_in(_fp, _address)
+        self.__Dict[_address] = (os.path.basename(_fp), _size)
+        # print(os.path.basename(_fp))
+        return "复制成功"
+
+    def __copy_out(self, _address, _fp):
+        self.__ssd.copy_out(_address, os.path.join(_fp, self.__Dict[_address][0]), self.__Dict[_address][1])
+        return "复制成功"
+
+    def __write_dict(self):
+        if not os.path.exists(self.__path):
+            os.mkdir(self.__path)
+
+        with open(self.__path + "\\dict.bin", "wb") as w_file:
+            w_file.write(pickle.dumps(self.__Dict))
 
 
 if __name__ == "__main__":
     path = os.path.abspath("data")
-    # print(path)
-
-    if os.path.exists(os.path.join(path, "dict.bin")):
-        with open(path + "\\dict.bin", "rb") as file:
-            Dict = pickle.loads(file.read())
-            # print(Dict)
-    else:
-        Dict = {}
-
     ssd = SSD("E:/VirtualSSD", (64 << 30), 8, (4 << 10))
-    with ShowingWrapper(ssd._mapping):
-        start_server()
-
-    ssd.close()
-    write_dict()
+    Server(ssd, path)
