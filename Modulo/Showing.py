@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
-from threading import Thread, Event
 
 class Showing:
     def __init__(self, Mapping1:Mapping.Mapping):
@@ -17,7 +16,7 @@ class Showing:
     def update(self, frame):
         plt.cla()  # 清空原有内容
         figsizewidlength,figsizewidth=(1,1)
-        row=self.Mapping1.flash
+        row=self.Mapping1.ssd.flashes
         linelength=self.Mapping1.address_len
         plt.tick_params(top=False,bottom=False,left=False,right=False)
         names=['flash[' + str(i) + ']' for i in reversed(range(row))]
