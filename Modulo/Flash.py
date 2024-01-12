@@ -55,7 +55,8 @@ class Flash:
     def listener(self) -> None:
         """伺服进程. 处理来自 SSD 的 flash 调用请求"""
         while True:
-            _msg = self._queue.get()  # {instruct, receiver(to receive return), payloads...}
+            _msg = self._queue.get()
+            # 通信协议: dict{"instruct"=INSTRUCT_EXIT, "receiver"=None, "args"=(), "kwargs"={}}
             _receiver = _msg.get("receiver")
             if _msg.get("instruct", self.INSTRUCT_EXIT) == self.INSTRUCT_EXIT:
                 if isinstance(_receiver, Waiter):
