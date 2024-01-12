@@ -53,8 +53,8 @@ __BITS = {
 }
 
 
-def parse_size(s) -> int:
-    """解析文件大小字符串， 返回单位 Bytes 的大小"""
+def parse_humanized_size(s) -> int:
+    """解析人性化文件大小表达式, 返回单位为 Bytes"""
     if isinstance(s, int):
         return s
     if isinstance(s, float):
@@ -66,3 +66,24 @@ def parse_size(s) -> int:
         _bits += __BITS[s[_i]]
         _i -= 1
     return int(float(s[:_i + 1])) << _bits
+
+
+def to_humanized_size(i: int) -> str:
+    """转换为人性化文件大小表达式"""
+    raise NotImplementedError()
+
+
+def parse_time_seconds(s) -> float:
+    """解析以秒为单位的时间"""
+    if isinstance(s, int) or isinstance(s, float):
+        return s
+    s = str(s).lower()
+    if s.endswith("ns"):
+        return float(s[:-2]) / 1e9
+    if s.endswith("us"):
+        return float(s[:-2]) / 1e6
+    if s.endswith("ms"):
+        return float(s[:-2]) / 1e3
+    if s.endswith("s"):
+        return float(s[:-1])
+    return float(s)
