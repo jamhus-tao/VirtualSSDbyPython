@@ -1,5 +1,6 @@
 .*
 __pycache__
+Server.yml
 test*
 temp.*
 tmp.*
