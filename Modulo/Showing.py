@@ -9,18 +9,18 @@ class Showing:
     def __init__(self, mapping: Mapping):
         self.mapping = mapping
         plt.rcParams["font.family"] = "FangSong"  # 支持中文显示
-        self.fig = plt.figure(figsize=(5,5))
+        self.fig = plt.figure(figsize=(5, 5))
         self.ax = self.fig.add_subplot(1, 1, 1)
         plt.gca().axes.get_xaxis().set_visible(False)  # x 轴不可见
 
-    def update(self, frame):
+    def update(self, _):
         plt.cla()  # 清空原有内容
         fig_size_width_length, fig_size_width = (1, 1)
         row = self.mapping.ssd.flashes
         line_length = self.mapping.address_tot // row
         plt.tick_params(top=False, bottom=False, left=False, right=False)
         names = ['flash[' + str(i) + ']' for i in reversed(range(row))]
-        plt.yticks([i * 1 / (row * 3) for i in range(1, row * 3, 3)], names)  # Y轴标签
+        plt.yticks([i * 1 / (row * 3) for i in range(1, row * 3, 3)], names, fontsize=9)  # Y轴标签
         rect = mpathes.Rectangle(
             np.array([0, 0]),
             fig_size_width_length,
@@ -71,13 +71,13 @@ class Showing:
 
         self.fig.canvas.draw()
 
-    def work(self):
+    def work(self, interval: int = 300):
         # plt.axis('off')
         _ = FuncAnimation(
             self.fig,
             self.update,
             frames=100,
-            interval=3000,
+            interval=interval,
             blit=False,
             repeat=False
         )  # 创建动画效果

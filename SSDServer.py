@@ -159,5 +159,5 @@ if __name__ == "__main__":
     server_handler = Thread(target=Server, args=(ssd, cfg))
     server_handler.start()
     showing_handler = Showing(ssd._mapping)
-    showing_handler.work()
+    showing_handler.work(cfg.FLUSH_INTERVAL)
     server_handler.join()
