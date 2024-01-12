@@ -1,55 +1,9 @@
 import socket
 import pickle
-import os
 import time
-import sys
-
-
-class IO:
-    @staticmethod
-    def input_int(s: str = "") -> int:
-        while True:
-            _x = input(s)
-            try:
-                _x = int(_x)
-                return _x
-            except Exception as e:
-                print(f"Error:{e},请重新输入")
-
-    @staticmethod
-    def input_file(s: str = "") -> str:
-        while True:
-            fp = input(s)
-            if fp[0] == "\"" and fp[-1] == "\"":
-                fp = fp[1:-1]
-
-            fp = os.path.abspath(fp)
-            if os.path.exists(fp):
-                break
-            else:
-                print(f"文件不存在: {fp}")
-
-        return fp
-
-    @staticmethod
-    def input_folder(s: str = "") -> str:
-        while True:
-            fp = input(s)
-            if fp[0] == "\"" and fp[-1] == "\"":
-                fp = fp[1:-1]
-            fp = os.path.abspath(fp)
-
-            if not os.path.exists(fp):
-                print(f"文件夹不存在: {fp}")
-                continue
-
-            if not os.path.isdir(fp):
-                print(f"不是个文件夹: {fp}")
-                continue
-
-            break
-
-        return fp
+from Modulo import IO
+# import os
+# import sys
 
 
 def connect(close):
@@ -89,46 +43,78 @@ def send_request():
 > """)
 
     close = False
-    if p == "1":
-        send_message = pickle.dumps([1])
+    try:
+        p = int(p)
+        if p == 1:
+            send_message = pickle.dumps([1])
 
-    elif p == "2":
-        name = input("请输入新建文件的文件名：\n> ")
-        size = IO.input_int("请输入新建文件的大小：\n> ")
-        notes = input("请输入新建文件的备注：\n> ")
+        elif p == 2:
+            name = input("请输入新建文件的文件名：\n> ")
+            size = IO.input_int("请输入新建文件的大小：\n> ")
+            notes = input("请输入新建文件的备注：\n> ")
 
-        send_message = pickle.dumps([2, name, size, notes])
+            send_message = pickle.dumps([2, name, size, notes])
 
-    elif p == "3":
-        address = IO.input_int("请输入删除的起始地址：\n> ")
+        elif p == 3:
+            address = IO.input_int("请输入删除的起始地址：\n> ")
 
-        send_message = pickle.dumps([3, address])
+            send_message = pickle.dumps([3, address])
 
-    elif p == "4":
-        fp = IO.input_file("请输入被拷贝文件的路径：\n> ")
+        elif p == 4:
+            fp = IO.input_file("请输入被拷贝文件的路径：\n> ")
 
-        notes = input("请输入新建文件的备注：\n> ")
+            notes = input("请输入新建文件的备注：\n> ")
 
-        send_message = pickle.dumps([4, fp, notes])
+            send_message = pickle.dumps([4, fp, notes])
 
-    elif p == "5":
-        address = IO.input_int("请输入 SSD 中被拷贝文件的起始地址：\n> ")
-        fp = IO.input_folder("请输入拷出文件夹的路径：\n> ")
+        elif p == 5:
+            address = IO.input_int("请输入 SSD 中被拷贝文件的起始地址：\n> ")
+            fp = IO.input_folder("请输入拷出文件夹的路径：\n> ")
 
-        send_message = pickle.dumps([5, address, fp])
+            send_message = pickle.dumps([5, address, fp])
 
-    elif p == "6":
-        send_message = pickle.dumps([6])
+        elif p == 6:
+            send_message = pickle.dumps([6])
 
-    elif p == "7":
-        return False
+        elif p == 7:
+            return False
 
-    elif p == "8":
-        send_message = pickle.dumps([8])
-        close = True
+        elif p == 8:
+            send_message = pickle.dumps([8])
+            close = True
 
-    else:
-        send_message = pickle.dumps("未知指令")
+        else:
+            print("未知指令")
+            return True
+
+    except ValueError:
+        li = p.split()
+        # print(li)
+        if li[0] == "ls":
+            send_message = pickle.dumps([1])
+
+        elif li[0] == "new":
+            notes = input("请输入新建文件的备注：\n> ")
+
+            return pickle.dumps([2, li[1], li[2], notes])
+
+        elif li[0] == "del":
+            send_message = pickle.dumps([3, li[1]])
+
+        elif li[0] == "cp":
+            try:
+                if li[2] == "-m":
+                    notes = li[3]
+                else:
+                    print("未知指令")
+                    return True
+            except IndexError:
+                notes = ""
+
+            send_message = pickle.dumps([4, li[1], notes])
+        else:
+            print("未知指令")
+            return True
 
     condition, client_socket = connect(close)
     if not condition:
