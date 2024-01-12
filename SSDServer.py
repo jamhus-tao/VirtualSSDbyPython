@@ -30,7 +30,7 @@ class Configer:
             self.PAGESIZE = self.__parse_size(_data["ssd"].get("pagesize", 4096))
             self.HOST = _data["server"]["host"]
             self.PORT = _data["server"]["port"]
-            self.DICT = _data.get("dict", "dict.bin")
+            self.DICT = _data.get("filesys", {}).get("dict", "dict.bin")
         except KeyError:
             raise AttributeError("Necessary config missing")
         except ValueError:
@@ -198,7 +198,7 @@ class Server:
 
 if __name__ == "__main__":
     cfg = Configer()
-    ssd = SSD(cfg.PATH, (64 << 30), 8, (4 << 10))
+    ssd = SSD(cfg.PATH, cfg.SIZE, cfg.FLASHES, cfg.PAGESIZE)
     server_handler = Thread(target=Server, args=(ssd, cfg))
     server_handler.start()
     showing_handler = Showing(ssd._mapping)
