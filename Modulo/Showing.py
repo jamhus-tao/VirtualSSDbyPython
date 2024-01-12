@@ -17,7 +17,7 @@ class Showing:
         plt.cla()  # 清空原有内容
         figsizewidlength,figsizewidth=(1,1)
         row=self.Mapping1.ssd.flashes
-        linelength=self.Mapping1.address_len
+        linelength=self.Mapping1.address_tot // row
         plt.tick_params(top=False,bottom=False,left=False,right=False)
         names=['flash[' + str(i) + ']' for i in reversed(range(row))]
         plt.yticks([i*1/(row*3)for i in range(1,row*3,3)], names )  # Y轴标签
