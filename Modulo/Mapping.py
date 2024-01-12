@@ -44,9 +44,9 @@ class Mapping:
         :return: (flash 编号, flash 页号)
         """
         with self.__rwlock.rlock():
-            if self.mapping[pageno] != self.STATUS_OCCUPY:
+            if pageno not in self.occupy_address_block:
                 raise AccessError("Address {} is inaccessible".format(pageno))
-            return pageno % self.ssd.flashes, pageno // self.ssd.flashes  # real address 可以直接计算得出
+        return pageno % self.ssd.flashes, pageno // self.ssd.flashes  # real address 可以直接计算得出
 
     def address_interval(self, pageno: int, pages: int) -> tuple[tuple[int, int]]:
         """
@@ -56,15 +56,19 @@ class Mapping:
         :return: ((flash 页号, flash 页数)...)
         """
         with self.__rwlock.rlock():
-            _ret = [None] * self.ssd.flashes
-            _flashno = pageno % self.ssd.flashes
-            pages += self.ssd.flashes - 1
-            for i in range(self.ssd.flashes):
-                _ret[_flashno] = pageno // self.ssd.flashes, pages // self.ssd.flashes
-                _flashno = (_flashno + 1) % self.ssd.flashes
-                pageno += 1
-                pages -= 1
-            return tuple(_ret)
+            if pageno not in self.occupy_address_block:
+                raise AccessError("Address {} is inaccessible".format(pageno))
+            if pages > self.occupy_address_block[pageno]:
+                raise AccessError("Address interval out of bound")
+        _ret = [None] * self.ssd.flashes
+        _flashno = pageno % self.ssd.flashes
+        pages += self.ssd.flashes - 1
+        for i in range(self.ssd.flashes):
+            _ret[_flashno] = pageno // self.ssd.flashes, pages // self.ssd.flashes
+            _flashno = (_flashno + 1) % self.ssd.flashes
+            pageno += 1
+            pages -= 1
+        return tuple(_ret)
 
     def alloc(self, pages: int) -> int:
         """
