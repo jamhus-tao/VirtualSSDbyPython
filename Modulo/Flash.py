@@ -17,23 +17,29 @@ class Flash:
     INSTRUCT_ERASE_INTERVAL = 0x32
     INSTRUCT_EXIT = 0xFF
 
-    def __init__(self, ssd, from_queue: Queue[tuple], fp: str):
+    def __init__(self, ssd, from_queue: Queue[dict], fp: str):
         """
         创建虚拟 flash 并打开, 同时指定 flash 大小
         :param ssd: 打开 ssd 的路径
         :param from_queue: 来自 SSD 的分发通道
         :param fp: 创建的 flash 的路径, 如果 flash 已存在则直接打开
         """
-        self.fp = fp
+        self.fp = fp if os.path.isabs(fp) else os.path.join(ssd.fp, fp)
         self.ssd = ssd
         self._queue = from_queue
         self.size = ssd.size // ssd.flashes  # ssd 保证可以整除
         self.pagesize = ssd.pagesize
+
+        # 用于 pagesize 相关快速计算
         self.__page_mask = self.pagesize - 1
         self.__page_bits = self.__count_bits(self.pagesize)
         self.__page_tot = self.size >> self.__page_bits
 
-        os.chdir(ssd.fp)
+        # 处理内存占用过高问题
+        self.__bytes_limit = 1 << 30 >> self.__count_bits(self.ssd.flashes)
+        self.__page_limit = self.__bytes_limit >> self.__page_bits
+
+        # os.chdir(ssd.fp)
         if not os.path.exists(self.fp):
             self.__init_flash()
 
@@ -53,20 +59,25 @@ class Flash:
         self.listener()
 
     def listener(self) -> None:
-        """
-        伺服进程. 处理来自 SSD 的 flash 调用请求
-        """
+        """伺服进程. 处理来自 SSD 的 flash 调用请求"""
         while True:
-            _msg = self._queue.get()  # {instruct, receiver(to receive return), payloads...}
-            _receiver = _msg[1]
-            if _msg[0] == self.INSTRUCT_EXIT:
+            _msg = self._queue.get()
+            # 通信协议: dict{"instruct"=INSTRUCT_EXIT, "receiver"=None, "args"=(), "kwargs"={}}
+            _receiver = _msg.get("receiver")
+            if _msg.get("instruct", self.INSTRUCT_EXIT) == self.INSTRUCT_EXIT:
                 if isinstance(_receiver, Waiter):
                     _receiver.dec()
                 elif isinstance(_receiver, Queue):
                     _receiver.put(None)
                 self.close()
                 return
-            _data = self.__instruct.get(_msg[0], lambda *args, **kwargs: None)(*_msg[2:])
+            _data = self.__instruct.get(
+                _msg.get("instruct"),
+                lambda *args, **kwargs: None
+            )(
+                *_msg.get("args", ()),
+                **_msg.get("kwargs", {})
+            )
             if isinstance(_receiver, Waiter):
                 _receiver.dec()
             elif isinstance(_receiver, Queue):
@@ -80,9 +91,10 @@ class Flash:
         """创建 flash"""
         with open(self.fp, "wb") as _file:
             _rest = self.size
-            while _rest > 0:
-                _file.write(self.__bytes_resize(b"", min(_rest, 1 << 30)))
-                _rest -= 1 << 30
+            while _rest > self.__bytes_limit:
+                _file.write(self.__bytes_resize(b"", self.__bytes_limit))
+                _rest -= self.__bytes_limit
+            _file.write(self.__bytes_resize(b"", _rest))
 
     def __read(self, pageno: int) -> bytes:
         """
@@ -117,11 +129,17 @@ class Flash:
         :param sk: 文件偏移
         """
         with open(fp, "rb+") as _file:
-            # _file.seek(sk, 0)
-            for i in range(pages):
-                _file.seek(sk + (i * self.ssd.flashes << self.__page_bits), 0)
-                _file.write(self.__read(pageno + i))
-                # _file.seek(self.ssd.flashes << self.__page_bits, 1)
+            _file.seek(sk, 0)
+            # 避免一次读入内存过多
+            while pages > self.__page_limit:
+                _file.write(self.__read_pages(pageno, self.__page_limit))
+                pageno += self.__page_limit
+                pages -= self.__page_limit
+            _file.write(self.__read_pages(pageno, pages))
+            # for i in range(pages):
+            #     _file.seek(sk + (i * self.ssd.flashes << self.__page_bits), 0)
+            #     _file.write(self.__read(pageno + i))
+            #     # _file.seek(self.ssd.flashes << self.__page_bits, 1)
 
     def __write(self, data: bytes, pageno: int) -> None:
         """
@@ -158,11 +176,17 @@ class Flash:
         :param pages: 页数
         """
         with open(fp, "rb") as _file:
-            # _file.seek(sk, 0)
-            for i in range(pages):
-                _file.seek(sk + (i * self.ssd.flashes << self.__page_bits), 0)
-                self.__write(_file.read(self.pagesize), pageno + i)
-                # _file.seek(self.ssd.flashes << self.__page_bits, 1)
+            _file.seek(sk, 0)
+            # 避免一次读入内存过多
+            while pages > self.__page_limit:
+                self.__write_pages(_file.read(self.__bytes_limit), pageno)
+                pageno += self.__page_limit
+                pages -= self.__page_limit
+            self.__write_pages(_file.read(pages << self.__page_bits), pageno)
+            # for i in range(pages):
+            #     _file.seek(sk + (i * self.ssd.flashes << self.__page_bits), 0)
+            #     self.__write(_file.read(self.pagesize), pageno + i)
+            #     # _file.seek(self.ssd.flashes << self.__page_bits, 1)
 
     def __erase(self, pageno: int) -> None:
         """

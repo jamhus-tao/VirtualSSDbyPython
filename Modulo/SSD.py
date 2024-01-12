@@ -19,25 +19,21 @@ class SSD:
         :param flashes: 指定 flash 的数量
         :param pagesize: 指定 page 的大小 (Bytes), 如果大小不合适, 将自动调整合适值
         """
-        if os.path.exists(fp) and os.path.exists("SSD.yml"):
+        self.fp = os.path.abspath(fp)
+        if os.path.exists(fp) and os.path.exists(os.path.join(self.fp, "SSD.yml")):
             # ssd 已存在
-            self.fp = fp
-            os.chdir(self.fp)
-
             self.__read_config()
+            self.__page_bits = self.__count_bits(self.pagesize)
         else:
             # ssd 未创建
-            self.fp = fp
             if not os.path.exists(self.fp):
                 os.mkdir(self.fp)
-            os.chdir(self.fp)
             self.__page_bits = self.__count_bits(pagesize)
-            self.pagesize = 1 << self.__page_bits
+            self.pagesize = pagesize
             self.flashes = max(flashes, 1)
             __ = self.flashes * self.pagesize
             self.size = (max(size, 1) + __ - 1) // __ * __
             self.flash = ["Flash{:02d}".format(__) for __ in range(self.flashes)]
-
             self.__write_config()
         self.__open_flash()
         self.__open__mapping()
@@ -64,24 +60,23 @@ class SSD:
             raise AccessError("Address {} is inaccessible".format(_pageno))
         if _pages > self._mapping.occupy_address_block[_pageno]:
             raise CopySizeError("Copy space is not enough")
-        _tasks = [[]] * self.flashes
+        _tasks = self._mapping.address_interval(_pageno, _pages)
+        _seek = 0
         with Waiter() as _waiter:
-            for i in range(_pages):
-                _flashno, _flashpageno = self._mapping.address(_pageno + i)
-                if not _tasks[_flashno]:
-                    _tasks[_flashno] = [i, _flashpageno, 0]
-                    _waiter.inc()
-                _tasks[_flashno][2] += 1
             for i in range(self.flashes):
                 if _tasks[i]:
-                    self.__from_queue[i].put((
-                        Flash.INSTRUCT_WRITE_FROM_FILE,
-                        _waiter,
-                        fp,
-                        _tasks[i][0] << self.__page_bits,
-                        _tasks[i][1],
-                        _tasks[i][2],
-                    ))
+                    _waiter.inc()
+                    self.__from_queue[i].put({
+                        "instruct": Flash.INSTRUCT_WRITE_FROM_FILE,
+                        "receiver": _waiter,
+                        "kwargs": {
+                            "pageno": _tasks[i][0],
+                            "pages": _tasks[i][1],
+                            "fp": fp,
+                            "sk": _seek,
+                        }
+                    })
+                    _seek += _tasks[i][1] << self.__page_bits
 
     def copy_out(self, address: int, fp: str, size: int) -> None:
         """从虚拟 ssd 拷贝到本地, 必须指定本地路径和本地文件大小"""
@@ -93,24 +88,23 @@ class SSD:
             raise CopySizeError("Copy space is not enough")
         with open(fp, "wb"):
             pass
-        _tasks = [[]] * self.flashes
+        _tasks = self._mapping.address_interval(_pageno, _pages)
+        _seek = 0
         with Waiter() as _waiter:
-            for i in range(_pages):
-                _flashno, _flashpageno = self._mapping.address(_pageno + i)
-                if not _tasks[_flashno]:
-                    _tasks[_flashno] = [i, _flashpageno, 0]
-                    _waiter.inc()
-                _tasks[_flashno][2] += 1
             for i in range(self.flashes):
                 if _tasks[i]:
-                    self.__from_queue[i].put((
-                        Flash.INSTRUCT_READ_INTO_FILE,
-                        _waiter,
-                        _tasks[i][1],
-                        _tasks[i][2],
-                        fp,
-                        _tasks[i][0] << self.__page_bits,
-                    ))
+                    _waiter.inc()
+                    self.__from_queue[i].put({
+                        "instruct": Flash.INSTRUCT_READ_INTO_FILE,
+                        "receiver": _waiter,
+                        "kwargs": {
+                            "pageno": _tasks[i][0],
+                            "pages": _tasks[i][1],
+                            "fp": fp,
+                            "sk": _seek,
+                        }
+                    })
+                    _seek += _tasks[i][1] << self.__page_bits
 
     def delete(self, address: int) -> None:
         """释放虚拟 ssd 目标地址"""
@@ -121,11 +115,14 @@ class SSD:
         self._mapping.close()
         with Waiter(self.flashes) as _waiter:
             for i in range(self.flashes):
-                self.__from_queue[i].put((Flash.INSTRUCT_EXIT, _waiter))
+                self.__from_queue[i].put({
+                    "instruct": Flash.INSTRUCT_EXIT,
+                    "receiver": _waiter
+                })
 
     def __read_config(self) -> None:
         """读取配置"""
-        with open("SSD.yml", "r", encoding="utf-8") as _file:
+        with open(os.path.join(self.fp, "SSD.yml"), "r", encoding="utf-8") as _file:
             _data = yaml.safe_load(_file)
             self.size = _data["size"]
             self.pagesize = _data["pagesize"]
@@ -134,7 +131,7 @@ class SSD:
 
     def __write_config(self) -> None:
         """写入配置"""
-        with open("SSD.yml", "w", encoding="utf-8") as _file:
+        with open(os.path.join(self.fp, "SSD.yml"), "w", encoding="utf-8") as _file:
             yaml.safe_dump({
                 "size": self.size,
                 "pagesize": self.pagesize,

@@ -18,7 +18,7 @@ class Mapping:
         :param ssd: 打开 ssd 的路径
         :param fp: 创建 mapping 的路径, 如果 mapping 已存在则直接打开
         """
-        self.fp = fp
+        self.fp = fp if os.path.isabs(fp) else os.path.join(ssd.fp, fp)
         self.ssd = ssd
         self.address_tot = ssd.size // ssd.pagesize  # ssd 保证可以整除
         self.address_len = self.__count_bits(self.address_tot) + 7 >> 3
@@ -31,7 +31,7 @@ class Mapping:
 
         self.__rwlock = RWLock()
 
-        os.chdir(ssd.fp)
+        # os.chdir(ssd.fp)
         if not os.path.exists(self.fp):
             self._init_mapping()
 
@@ -40,13 +40,35 @@ class Mapping:
     def address(self, pageno: int) -> tuple[int, int]:
         """
         返回地址在 flash 的真实地址
-        :param pageno: 地址
-        :return: (flash 编号, flash 地址)
+        :param pageno: 页号
+        :return: (flash 编号, flash 页号)
         """
         with self.__rwlock.rlock():
-            if self.mapping[pageno] != self.STATUS_OCCUPY:
+            if pageno not in self.occupy_address_block:
                 raise AccessError("Address {} is inaccessible".format(pageno))
-            return pageno % self.ssd.flashes, pageno // self.ssd.flashes  # real address 可以直接计算得出
+        return pageno % self.ssd.flashes, pageno // self.ssd.flashes  # real address 可以直接计算得出
+
+    def address_interval(self, pageno: int, pages: int) -> tuple[tuple[int, int]]:
+        """
+        返回地址区间在各个 flash 上占用的区间
+        :param pageno: 页号
+        :param pages: 页数
+        :return: ((flash 页号, flash 页数)...)
+        """
+        with self.__rwlock.rlock():
+            if pageno not in self.occupy_address_block:
+                raise AccessError("Address {} is inaccessible".format(pageno))
+            if pages > self.occupy_address_block[pageno]:
+                raise AccessError("Address interval out of bound")
+        _ret = [None] * self.ssd.flashes
+        _flashno = pageno % self.ssd.flashes
+        pages += self.ssd.flashes - 1
+        for i in range(self.ssd.flashes):
+            _ret[_flashno] = pageno // self.ssd.flashes, pages // self.ssd.flashes
+            _flashno = (_flashno + 1) % self.ssd.flashes
+            pageno += 1
+            pages -= 1
+        return tuple(_ret)
 
     def alloc(self, pages: int) -> int:
         """
