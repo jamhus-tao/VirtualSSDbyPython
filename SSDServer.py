@@ -2,7 +2,7 @@ import os
 import socket
 import pickle
 from threading import Thread
-# import atexit
+from datetime import datetime
 
 import yaml
 
@@ -28,7 +28,6 @@ class Configer:
 
 class Server:
     def __init__(self, ssd: SSD, cfg: Configer):
-        # atexit.register(self.__write_dict)
         self.__ssd = ssd
         self.__cfg = cfg
         # print(self.__path)
@@ -90,17 +89,22 @@ class Server:
         _result = "Unknown Error"
         if _li[0] == 1:
             _origin_list = self.__ssd.list()
-            _result = "{:<20}{:<20}{:<20}\n".format("begin", "name", "size")
+            _result = "{:<20}{:<20}{:<20}{:<30}{}\n".format("begin", "name", "size", "modified date", "notes")
             for _address, __ in _origin_list:
-                _result += "{:<20}{:<20}{:<20}\n".format(str(_address), self.__Dict[_address][0],
-                                                         str(self.__Dict[_address][1]))
+                _result += "{:<20}{:<20}{:<20}{:<30}{}\n".format(
+                    str(_address),
+                    self.__Dict[_address][0],
+                    str(self.__Dict[_address][1]),
+                    str(self.__Dict[_address][2]).split(".")[0],
+                    self.__Dict[_address][3]
+                )
 
             if not _origin_list:
                 _result += "(empty)\n"
 
         elif _li[0] == 2:
             _address = self.__ssd.create(_li[2])
-            self.__Dict[_address] = (_li[1], _li[2])
+            self.__Dict[_address] = (_li[1], _li[2], datetime.now(), _li[3])
             _result = "创建成功"
 
         elif _li[0] == 3:
@@ -112,7 +116,7 @@ class Server:
 
         elif _li[0] == 4:
             try:
-                _result = self.__copy_in(_li[1])
+                _result = self.__copy_in(_li[1], _li[2])
             except Exception as e:
                 _result = "Error: " + str(e)
 
@@ -145,11 +149,11 @@ class Server:
         _client_socket.close()
         return
 
-    def __copy_in(self, _fp):
+    def __copy_in(self, _fp, _notes):
         _size = os.stat(_fp).st_size
         _address = self.__ssd.create(_size)
         self.__ssd.copy_in(_fp, _address)
-        self.__Dict[_address] = (os.path.basename(_fp), _size)
+        self.__Dict[_address] = (os.path.basename(_fp), _size, datetime.now(), _notes)
         # print(os.path.basename(_fp))
         return "复制成功"
 

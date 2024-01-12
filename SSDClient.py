@@ -1,6 +1,7 @@
 import socket
 import pickle
 import os
+import time
 import sys
 
 
@@ -14,6 +15,41 @@ class IO:
                 return _x
             except Exception as e:
                 print(f"Error:{e},请重新输入")
+
+    @staticmethod
+    def input_file(s: str = "") -> str:
+        while True:
+            fp = input(s)
+            if fp[0] == "\"" and fp[-1] == "\"":
+                fp = fp[1:-1]
+
+            fp = os.path.abspath(fp)
+            if os.path.exists(fp):
+                break
+            else:
+                print(f"文件不存在: {fp}")
+
+        return fp
+
+    @staticmethod
+    def input_folder(s: str = "") -> str:
+        while True:
+            fp = input(s)
+            if fp[0] == "\"" and fp[-1] == "\"":
+                fp = fp[1:-1]
+            fp = os.path.abspath(fp)
+
+            if not os.path.exists(fp):
+                print(f"文件夹不存在: {fp}")
+                continue
+
+            if not os.path.isdir(fp):
+                print(f"不是个文件夹: {fp}")
+                continue
+
+            break
+
+        return fp
 
 
 def connect(close):
@@ -59,8 +95,9 @@ def send_request():
     elif p == "2":
         name = input("请输入新建文件的文件名：\n> ")
         size = IO.input_int("请输入新建文件的大小：\n> ")
+        notes = input("请输入新建文件的备注：\n> ")
 
-        send_message = pickle.dumps([2, name, size])
+        send_message = pickle.dumps([2, name, size, notes])
 
     elif p == "3":
         address = IO.input_int("请输入删除的起始地址：\n> ")
@@ -68,26 +105,20 @@ def send_request():
         send_message = pickle.dumps([3, address])
 
     elif p == "4":
-        fp = input("请输入被拷贝文件的路径：\n> ")
-        if fp[0] == "\"" and fp[-1] == "\"":
-            fp = fp[1:-1]
+        fp = IO.input_file("请输入被拷贝文件的路径：\n> ")
 
-        fp = os.path.abspath(fp)
+        notes = input("请输入新建文件的备注：\n> ")
 
-        send_message = pickle.dumps([4, fp])
+        send_message = pickle.dumps([4, fp, notes])
 
     elif p == "5":
         address = IO.input_int("请输入 SSD 中被拷贝文件的起始地址：\n> ")
-        fp = input("请输入拷出文件夹的路径：\n> ")
-        if fp[0] == "\"" and fp[-1] == "\"":
-            fp = fp[1:-1]
-
-        fp = os.path.abspath(fp)
+        fp = IO.input_folder("请输入拷出文件夹的路径：\n> ")
 
         send_message = pickle.dumps([5, address, fp])
 
     elif p == "6":
-        send_message = pickle.dumps([6,])
+        send_message = pickle.dumps([6])
 
     elif p == "7":
         return False
@@ -106,14 +137,17 @@ def send_request():
             return False
         return True
 
+    start_time = time.time()
     client_socket.send(send_message)
 
     # 接收服务器的响应
     response = client_socket.recv(1024)
 
     response = pickle.loads(response)
+    end_time = time.time()
 
-    print(response, end="\n\n")
+    print(response)
+    print("操作共花费：{:.3} s".format(end_time - start_time), end="\n\n")
 
     client_socket.close()
 
