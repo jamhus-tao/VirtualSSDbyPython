@@ -2,6 +2,7 @@ import os
 import socket
 import pickle
 from threading import Thread
+# import atexit
 
 import yaml
 
@@ -27,6 +28,7 @@ class Configer:
 
 class Server:
     def __init__(self, ssd: SSD, cfg: Configer):
+        # atexit.register(self.__write_dict)
         self.__ssd = ssd
         self.__cfg = cfg
         # print(self.__path)
@@ -85,31 +87,8 @@ class Server:
         _li = pickle.loads(_li)
         _message.append((_cnt, _li[0]))
 
+        _result = "Unknown Error"
         if _li[0] == 1:
-            _address = self.__ssd.create(_li[2])
-            self.__Dict[_address] = (_li[1], _li[2])
-            _result = "创建成功"
-
-        elif _li[0] == 2:
-            try:
-                self.__ssd.delete(_li[1])
-                _result = "删除成功"
-            except Exception as e:
-                _result = "Error: " + str(e)
-
-        elif _li[0] == 3:
-            try:
-                _result = self.__copy_in(_li[1])
-            except Exception as e:
-                _result = "Error: " + str(e)
-
-        elif _li[0] == 4:
-            try:
-                _result = self.__copy_out(_li[1], _li[2])
-            except Exception as e:
-                _result = "Error: " + str(e)
-
-        elif _li[0] == 5:
             _origin_list = self.__ssd.list()
             _result = "{:<20}{:<20}{:<20}\n".format("begin", "name", "size")
             for _address, __ in _origin_list:
@@ -119,10 +98,42 @@ class Server:
             if not _origin_list:
                 _result += "(empty)\n"
 
-        elif _li[0] == 7:
+        elif _li[0] == 2:
+            _address = self.__ssd.create(_li[2])
+            self.__Dict[_address] = (_li[1], _li[2])
+            _result = "创建成功"
+
+        elif _li[0] == 3:
+            try:
+                self.__ssd.delete(_li[1])
+                _result = "删除成功"
+            except Exception as e:
+                _result = "Error: " + str(e)
+
+        elif _li[0] == 4:
+            try:
+                _result = self.__copy_in(_li[1])
+            except Exception as e:
+                _result = "Error: " + str(e)
+
+        elif _li[0] == 5:
+            try:
+                _result = self.__copy_out(_li[1], _li[2])
+            except Exception as e:
+                _result = "Error: " + str(e)
+
+        elif _li[0] == 6:
+            _origin_list = self.__ssd.list()
+            for _address, __ in _origin_list:
+                self.__ssd.delete(_address)
+
+            self.__Dict = {}
+            _result = "SSD 已格式化"
+
+        elif _li[0] == 8:
             self.__ssd.close()
             self.__write_dict()
-            _client_socket.send(pickle.dumps("服务端已关闭"))
+            _client_socket.send(pickle.dumps("SSD 已关闭"))
             _client_socket.close()
             return
 
