@@ -18,7 +18,7 @@ class Mapping:
         :param ssd: 打开 ssd 的路径
         :param fp: 创建 mapping 的路径, 如果 mapping 已存在则直接打开
         """
-        self.fp = fp
+        self.fp = fp if os.path.isabs(fp) else os.path.join(ssd.fp, fp)
         self.ssd = ssd
         self.address_tot = ssd.size // ssd.pagesize  # ssd 保证可以整除
         self.address_len = self.__count_bits(self.address_tot) + 7 >> 3
@@ -31,7 +31,7 @@ class Mapping:
 
         self.__rwlock = RWLock()
 
-        os.chdir(ssd.fp)
+        # os.chdir(ssd.fp)
         if not os.path.exists(self.fp):
             self._init_mapping()
 

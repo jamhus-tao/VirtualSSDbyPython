@@ -19,25 +19,21 @@ class SSD:
         :param flashes: 指定 flash 的数量
         :param pagesize: 指定 page 的大小 (Bytes), 如果大小不合适, 将自动调整合适值
         """
-        if os.path.exists(fp) and os.path.exists("SSD.yml"):
+        self.fp = os.path.abspath(fp)
+        if os.path.exists(fp) and os.path.exists(os.path.join(self.fp, "SSD.yml")):
             # ssd 已存在
-            self.fp = fp
-            os.chdir(self.fp)
-
             self.__read_config()
+            self.__page_bits = self.__count_bits(self.pagesize)
         else:
             # ssd 未创建
-            self.fp = fp
             if not os.path.exists(self.fp):
                 os.mkdir(self.fp)
-            os.chdir(self.fp)
             self.__page_bits = self.__count_bits(pagesize)
-            self.pagesize = 1 << self.__page_bits
+            self.pagesize = pagesize
             self.flashes = max(flashes, 1)
             __ = self.flashes * self.pagesize
             self.size = (max(size, 1) + __ - 1) // __ * __
             self.flash = ["Flash{:02d}".format(__) for __ in range(self.flashes)]
-
             self.__write_config()
         self.__open_flash()
         self.__open__mapping()
@@ -125,7 +121,7 @@ class SSD:
 
     def __read_config(self) -> None:
         """读取配置"""
-        with open("SSD.yml", "r", encoding="utf-8") as _file:
+        with open(os.path.join(self.fp, "SSD.yml"), "r", encoding="utf-8") as _file:
             _data = yaml.safe_load(_file)
             self.size = _data["size"]
             self.pagesize = _data["pagesize"]
@@ -134,7 +130,7 @@ class SSD:
 
     def __write_config(self) -> None:
         """写入配置"""
-        with open("SSD.yml", "w", encoding="utf-8") as _file:
+        with open(os.path.join(self.fp, "SSD.yml"), "w", encoding="utf-8") as _file:
             yaml.safe_dump({
                 "size": self.size,
                 "pagesize": self.pagesize,

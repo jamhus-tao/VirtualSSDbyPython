@@ -24,7 +24,7 @@ class Flash:
         :param from_queue: 来自 SSD 的分发通道
         :param fp: 创建的 flash 的路径, 如果 flash 已存在则直接打开
         """
-        self.fp = fp
+        self.fp = fp if os.path.isabs(fp) else os.path.join(ssd.fp, fp)
         self.ssd = ssd
         self._queue = from_queue
         self.size = ssd.size // ssd.flashes  # ssd 保证可以整除
@@ -33,7 +33,7 @@ class Flash:
         self.__page_bits = self.__count_bits(self.pagesize)
         self.__page_tot = self.size >> self.__page_bits
 
-        os.chdir(ssd.fp)
+        # os.chdir(ssd.fp)
         if not os.path.exists(self.fp):
             self.__init_flash()
 
