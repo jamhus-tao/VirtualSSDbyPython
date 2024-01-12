@@ -1,19 +1,37 @@
+import os
 import socket
 import pickle
 from threading import Thread
-import os
-from Modulo.SSD import SSD
 
-PATH = "E:/VirtualSSD"
+import yaml
+
+from Modulo.SSD import SSD
+from Modulo.Showing import Showing
+
+
+class Configer:
+    def __init__(self, fp: str = "Server.yml"):
+        self.fp = fp
+        if not os.path.exists(fp):
+            raise AttributeError("Config YAML file not fount: {}".format(self.fp))
+        with open(fp, "r") as _file:
+            _data = yaml.safe_load(_file)
+        try:
+            self.PATH = _data["ssd"]
+            self.HOST = _data["host"]
+            self.PORT = _data["port"]
+            self.DICT = _data.get("dict", "dict.bin")
+        except KeyError:
+            raise AttributeError("Necessary config missing")
 
 
 class Server:
-    def __init__(self, _ssd, _path):
-        self.__ssd = _ssd
-        self.__path = _path
+    def __init__(self, ssd: SSD, cfg: Configer):
+        self.__ssd = ssd
+        self.__cfg = cfg
         # print(self.__path)
 
-        _file_path = os.path.join(self.__path, "dict.bin")
+        _file_path = os.path.join(self.__cfg.PATH, self.__cfg.DICT)
         if os.path.exists(_file_path):
             with open(_file_path, "rb") as file:
                 self.__Dict = pickle.loads(file.read())
@@ -24,15 +42,15 @@ class Server:
         self.__start_server()
 
     def __start_server(self):
-        _host = "127.0.0.1"
-        _port = 5555
+        # _host = "127.0.0.1"
+        # _port = 5555
 
         _server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        _server_socket.bind((_host, _port))
+        _server_socket.bind((self.__cfg.HOST, self.__cfg.PORT))
 
         # 最多监听十个连接。
         _server_socket.listen(10)
-        print(f"Server listening on {_host}:{_port}")
+        print(f"Server listening on {self.__cfg.HOST}:{self.__cfg.PORT}")
 
         _message = [(0, 0)]
         _cnt = 0
@@ -129,14 +147,19 @@ class Server:
         return "复制成功"
 
     def __write_dict(self):
-        if not os.path.exists(self.__path):
-            os.mkdir(self.__path)
+        if not os.path.exists(self.__cfg.PATH):
+            os.mkdir(self.__cfg.PATH)
 
-        _file_path = os.path.join(self.__path, "dict.bin")
+        _file_path = os.path.join(self.__cfg.PATH, self.__cfg.DICT)
         with open(_file_path, "wb") as w_file:
             w_file.write(pickle.dumps(self.__Dict))
 
 
 if __name__ == "__main__":
-    ssd = SSD(PATH, (64 << 30), 8, (4 << 10))
-    Server(ssd, PATH)
+    cfg = Configer()
+    ssd = SSD(cfg.PATH, (64 << 30), 8, (4 << 10))
+    server_handler = Thread(target=Server, args=(ssd, cfg))
+    server_handler.start()
+    showing_handler = Showing(ssd._mapping)
+    showing_handler.work()
+    server_handler.join()
