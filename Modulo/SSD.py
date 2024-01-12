@@ -73,7 +73,7 @@ class SSD:
                     _waiter.inc()
                 _tasks[_flashno][2] += 1
             for i in range(self.flashes):
-                if _tasks[_flashno]:
+                if _tasks[i]:
                     self.__from_queue[i].put((
                         Flash.INSTRUCT_WRITE_FROM_FILE,
                         _waiter,
