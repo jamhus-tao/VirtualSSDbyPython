@@ -42,54 +42,58 @@ def connect(close):
 
 def send_request():
     p = input("""请选择操作：
-1. 新建文件
-2. 删除文件
-3. 复制文件至硬盘
-4. 复制硬盘文件至指定文件夹
-5. 查看硬盘使用情况
-6. 退出
-7. 关闭服务端并退出
+1. 查看 SSD 使用情况
+2. 新建文件
+3. 删除文件
+4. 复制指定文件至 SSD 中
+5. 复制 SSD 至指定文件夹
+6. 格式化
+7. 退出
+8. 关闭服务端并退出
 > """)
 
     close = False
     if p == "1":
+        send_message = pickle.dumps([1])
+
+    elif p == "2":
         name = input("请输入新建文件的文件名：\n> ")
         size = IO.input_int("请输入新建文件的大小：\n> ")
 
-        send_message = pickle.dumps([1, name, size])
-
-    elif p == "2":
-        address = IO.input_int("请输入删除的起始地址：\n> ")
-
-        send_message = pickle.dumps([2, address])
+        send_message = pickle.dumps([2, name, size])
 
     elif p == "3":
+        address = IO.input_int("请输入删除的起始地址：\n> ")
+
+        send_message = pickle.dumps([3, address])
+
+    elif p == "4":
         fp = input("请输入被拷贝文件的路径：\n> ")
         if fp[0] == "\"" and fp[-1] == "\"":
             fp = fp[1:-1]
 
         fp = os.path.abspath(fp)
 
-        send_message = pickle.dumps([3, fp])
+        send_message = pickle.dumps([4, fp])
 
-    elif p == "4":
-        address = IO.input_int("请输入硬盘中被拷贝文件的起始地址：\n> ")
+    elif p == "5":
+        address = IO.input_int("请输入 SSD 中被拷贝文件的起始地址：\n> ")
         fp = input("请输入拷出文件夹的路径：\n> ")
         if fp[0] == "\"" and fp[-1] == "\"":
             fp = fp[1:-1]
 
         fp = os.path.abspath(fp)
 
-        send_message = pickle.dumps([4, address, fp])
-
-    elif p == "5":
-        send_message = pickle.dumps([5])
+        send_message = pickle.dumps([5, address, fp])
 
     elif p == "6":
-        return False
+        send_message = pickle.dumps([6,])
 
     elif p == "7":
-        send_message = pickle.dumps([7])
+        return False
+
+    elif p == "8":
+        send_message = pickle.dumps([8])
         close = True
 
     else:
@@ -109,7 +113,7 @@ def send_request():
 
     response = pickle.loads(response)
 
-    print(response)
+    print(response, end="\n\n")
 
     client_socket.close()
 
