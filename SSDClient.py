@@ -2,7 +2,9 @@ import socket
 import pickle
 import time
 from Modulo import IO
-# import os
+import os
+
+
 # import sys
 
 
@@ -41,6 +43,9 @@ def send_request():
 7. 退出
 8. 关闭服务端并退出
 > """)
+
+    if not p:
+        return True
 
     close = False
     try:
@@ -94,24 +99,98 @@ def send_request():
             send_message = pickle.dumps([1])
 
         elif li[0] == "new":
-            notes = input("请输入新建文件的备注：\n> ")
-
-            return pickle.dumps([2, li[1], li[2], notes])
-
-        elif li[0] == "del":
-            send_message = pickle.dumps([3, li[1]])
-
-        elif li[0] == "cp":
             try:
-                if li[2] == "-m":
-                    notes = li[3]
+                if li[3] == "-m":
+                    notes = li[4]
                 else:
                     print("未知指令")
                     return True
             except IndexError:
                 notes = ""
 
-            send_message = pickle.dumps([4, li[1], notes])
+            try:
+                send_message = pickle.dumps([2, li[1], int(li[2]), notes])
+            except ValueError:
+                print("非法输入，第三个参数应该是一个整数")
+                return True
+            except IndexError:
+                print("非法输入，参数输入不足")
+                return True
+
+        elif li[0] == "del":
+            try:
+                send_message = pickle.dumps([3, int(li[1])])
+            except ValueError:
+                print("非法输入，第二个参数应该是一个整数")
+                return True
+            except IndexError:
+                print("非法输入，参数输入不足")
+                return True
+
+        elif li[0] == "cp":
+            notes = ""
+            has_notes = False
+            fp = ""
+            has_fp = False
+            address = -1
+            visited = {0}
+            for i in range(1, len(li)):
+                if li[i] == "-m" and not has_notes:
+                    try:
+                        notes = li[i + 1]
+                        visited.add(i)
+                        visited.add(i + 1)
+                        has_notes = True
+                        continue
+                    except IndexError:
+                        print("非法输入，-m 后面未输入备注")
+                        return True
+
+                if has_fp:
+                    continue
+
+                temp = li[i]
+                if temp[0] == "\"" and temp[-1] == "\"":
+                    temp = temp[1:-1]
+
+                temp = os.path.abspath(temp)
+                if os.path.exists(temp):
+                    fp = temp
+                    visited.add(i)
+                    has_fp = True
+
+            if len(visited) == len(li):
+                if fp == "":
+                    print("非法输入")
+                    return True
+                send_message = pickle.dumps([4, fp, notes])
+
+            elif len(visited) + 1 == len(li):
+                for i in range(len(li)):
+                    if i not in visited:
+                        address = int(li[i])
+                        break
+
+                if fp == "" or address == -1:
+                    print("非法输入")
+                    return True
+
+                send_message = pickle.dumps([5, address, fp, notes])
+
+            else:
+                print("非法输入")
+                return True
+
+        elif li[0] == "format":
+            send_message = pickle.dumps([6])
+
+        elif li[0] == "exit":
+            return False
+
+        elif li[0] == "close":
+            send_message = pickle.dumps([8])
+            close = True
+
         else:
             print("未知指令")
             return True
