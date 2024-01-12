@@ -61,6 +61,7 @@ class SSD:
         if _pages > self._mapping.occupy_address_block[_pageno]:
             raise CopySizeError("Copy space is not enough")
         _tasks = self._mapping.address_interval(_pageno, _pages)
+        _seek = 0
         with Waiter() as _waiter:
             for i in range(self.flashes):
                 if _tasks[i]:
@@ -72,10 +73,10 @@ class SSD:
                             "pageno": _tasks[i][0],
                             "pages": _tasks[i][1],
                             "fp": fp,
-                            "sk": _pageno << self.__page_bits,
+                            "sk": _seek,
                         }
                     })
-                    _pageno += _tasks[i][1]
+                    _seek += _tasks[i][1] << self.__page_bits
 
     def copy_out(self, address: int, fp: str, size: int) -> None:
         """从虚拟 ssd 拷贝到本地, 必须指定本地路径和本地文件大小"""
@@ -88,6 +89,7 @@ class SSD:
         with open(fp, "wb"):
             pass
         _tasks = self._mapping.address_interval(_pageno, _pages)
+        _seek = 0
         with Waiter() as _waiter:
             for i in range(self.flashes):
                 if _tasks[i]:
@@ -99,10 +101,10 @@ class SSD:
                             "pageno": _tasks[i][0],
                             "pages": _tasks[i][1],
                             "fp": fp,
-                            "sk": _pageno << self.__page_bits,
+                            "sk": _seek,
                         }
                     })
-                    _pageno += _tasks[i][1]
+                    _seek += _tasks[i][1] << self.__page_bits
 
     def delete(self, address: int) -> None:
         """释放虚拟 ssd 目标地址"""
@@ -113,7 +115,10 @@ class SSD:
         self._mapping.close()
         with Waiter(self.flashes) as _waiter:
             for i in range(self.flashes):
-                self.__from_queue[i].put((Flash.INSTRUCT_EXIT, _waiter))
+                self.__from_queue[i].put({
+                    "instruct": Flash.INSTRUCT_EXIT,
+                    "receiver": _waiter
+                })
 
     def __read_config(self) -> None:
         """读取配置"""
