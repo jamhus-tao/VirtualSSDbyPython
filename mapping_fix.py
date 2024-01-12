@@ -1,22 +1,6 @@
 import os
-import yaml
+from Modulo.GlobalConfig import Configer
 from Modulo.SSD import SSD
-
-
-class Configer:
-    def __init__(self, fp: str = "Server.yml"):
-        self.fp = fp
-        if not os.path.exists(fp):
-            raise AttributeError("Config YAML file not fount: {}".format(self.fp))
-        with open(fp, "r") as _file:
-            _data = yaml.safe_load(_file)
-        try:
-            self.PATH = _data["ssd"]
-            self.HOST = _data["host"]
-            self.PORT = _data["port"]
-            self.DICT = _data.get("dict", "dict.bin")
-        except KeyError:
-            raise AttributeError("Necessary config missing")
 
 
 if __name__ == "__main__":
