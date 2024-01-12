@@ -17,7 +17,7 @@ class Flash:
     INSTRUCT_ERASE_INTERVAL = 0x32
     INSTRUCT_EXIT = 0xFF
 
-    def __init__(self, ssd, from_queue: Queue[tuple], fp: str):
+    def __init__(self, ssd, from_queue: Queue[dict], fp: str):
         """
         创建虚拟 flash 并打开, 同时指定 flash 大小
         :param ssd: 打开 ssd 的路径
@@ -53,20 +53,24 @@ class Flash:
         self.listener()
 
     def listener(self) -> None:
-        """
-        伺服进程. 处理来自 SSD 的 flash 调用请求
-        """
+        """伺服进程. 处理来自 SSD 的 flash 调用请求"""
         while True:
             _msg = self._queue.get()  # {instruct, receiver(to receive return), payloads...}
-            _receiver = _msg[1]
-            if _msg[0] == self.INSTRUCT_EXIT:
+            _receiver = _msg.get("receiver")
+            if _msg.get("instruct", self.INSTRUCT_EXIT) == self.INSTRUCT_EXIT:
                 if isinstance(_receiver, Waiter):
                     _receiver.dec()
                 elif isinstance(_receiver, Queue):
                     _receiver.put(None)
                 self.close()
                 return
-            _data = self.__instruct.get(_msg[0], lambda *args, **kwargs: None)(*_msg[2:])
+            _data = self.__instruct.get(
+                _msg.get("instruct"),
+                lambda *args, **kwargs: None
+            )(
+                *_msg.get("args", ()),
+                **_msg.get("kwargs", {})
+            )
             if isinstance(_receiver, Waiter):
                 _receiver.dec()
             elif isinstance(_receiver, Queue):
