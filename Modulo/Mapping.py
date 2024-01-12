@@ -35,7 +35,7 @@ class Mapping:
         if not os.path.exists(self.fp):
             self._init_mapping()
 
-        self.__load_mapping()
+        self._load_mapping()
 
     def address(self, pageno: int) -> tuple[int, int]:
         """
@@ -119,7 +119,7 @@ class Mapping:
     def close(self):
         """关闭 mapping"""
         with self.__rwlock.wlock():
-            self.__dump_mapping()
+            self._dump_mapping()
 
     def _init_mapping(self):
         """
@@ -142,7 +142,7 @@ class Mapping:
                 self.__int2bytes(self.address_tot - self.ssd.flashes)
             )  # {address = ssd.flashes, block_size = address_tot}
 
-    def __load_mapping(self):
+    def _load_mapping(self):
         """读取 mapping"""
         with open(self.fp, "rb") as _file:
             self.mapping = bytearray(_file.read(self.address_tot))
@@ -160,7 +160,7 @@ class Mapping:
                 elif _code == self.STATUS_OCCUPY:
                     self.occupy_address_block[_address] = _block_size
 
-    def __dump_mapping(self):
+    def _dump_mapping(self):
         """保存 mapping"""
         with open(self.fp, "wb") as _file:
             _file.write(self.mapping)
