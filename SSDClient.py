@@ -5,8 +5,16 @@ from Modulo import IO
 import os
 
 
-# import sys
-
+help_documents = """查看 SSD 使用情况: ls
+新建文件: new  新建文件名  新建文件大小  [-m 新建文件备注]
+删除文件: del  删除文件的起始地址
+复制指定文件至 SSD 中: cp  拷入文件名  [-m 拷入文件备注]
+复制 SSD 至指定文件夹: cp  拷出文件名  SSD中文件的起始地址
+格式化: format
+退出: exit
+关闭服务端并退出: close
+帮助: help
+"""
 
 def connect(close):
     host = "127.0.0.1"
@@ -42,6 +50,7 @@ def send_request():
 6. 格式化
 7. 退出
 8. 关闭服务端并退出
+0. 帮助
 > """)
 
     if not p:
@@ -87,6 +96,10 @@ def send_request():
         elif p == 8:
             send_message = pickle.dumps([8])
             close = True
+
+        elif p == 0:
+            print(help_documents)
+            return True
 
         else:
             print("未知指令")
@@ -211,8 +224,12 @@ def send_request():
             send_message = pickle.dumps([8])
             close = True
 
+        elif li[0] == "help":
+            print(help_documents)
+            return True
+
         else:
-            print("未知指令")
+            print("未知指令")()
             return True
 
     condition, client_socket = connect(close)
