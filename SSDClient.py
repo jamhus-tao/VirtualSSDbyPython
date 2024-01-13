@@ -5,7 +5,16 @@ from Modulo import IO
 import os
 
 
-# import sys
+help_documents = """查看 SSD 使用情况: ls
+新建文件: new  新建文件名  新建文件大小  [-m 新建文件备注]
+删除文件: del  删除文件的起始地址
+复制指定文件至 SSD 中: cp  拷入文件名  [-m 拷入文件备注]
+复制 SSD 至指定文件夹: cp  拷出文件名  SSD中文件的起始地址
+格式化: format
+退出: exit
+关闭服务端并退出: close
+帮助: help
+"""
 
 
 def connect(close):
@@ -42,6 +51,7 @@ def send_request():
 6. 格式化
 7. 退出
 8. 关闭服务端并退出
+0. 帮助
 > """)
 
     if not p:
@@ -55,7 +65,7 @@ def send_request():
 
         elif p == 2:
             name = input("请输入新建文件的文件名：\n> ")
-            size = IO.input_int("请输入新建文件的大小：\n> ")
+            size = IO.input_humanized_size("请输入新建文件的大小：\n> ")
             notes = input("请输入新建文件的备注：\n> ")
 
             send_message = pickle.dumps([2, name, size, notes])
@@ -88,6 +98,10 @@ def send_request():
             send_message = pickle.dumps([8])
             close = True
 
+        elif p == 0:
+            print(help_documents)
+            return True
+
         else:
             print("未知指令")
             return True
@@ -109,13 +123,20 @@ def send_request():
                 notes = ""
 
             try:
-                send_message = pickle.dumps([2, li[1], int(li[2]), notes])
-            except ValueError:
-                print("非法输入，第三个参数应该是一个整数")
-                return True
+                li[1], li[2]
             except IndexError:
                 print("非法输入，参数输入不足")
                 return True
+
+            if IO.is_int(li[2]):
+                li[2] = int(li[2])
+            elif IO.is_humanized_size(li[2]):
+                li[2] = IO.parse_humanized_size(li[2])
+            else:
+                print("非法输入，第三个参数无法识别")
+                return True
+
+            send_message = pickle.dumps([2, li[1], li[2], notes])
 
         elif li[0] == "del":
             try:
@@ -150,7 +171,11 @@ def send_request():
                     continue
 
                 temp = li[i]
-                if temp[0] == "\"" and temp[-1] == "\"":
+                if li[i] == "\"":
+                    print("非法输入")
+                    return True
+
+                if len(li[i]) >= 2 and temp[0] == "\"" and temp[-1] == "\"":
                     temp = temp[1:-1]
 
                 temp = os.path.abspath(temp)
@@ -163,9 +188,14 @@ def send_request():
                 if fp == "":
                     print("非法输入")
                     return True
+
+                if os.path.isdir(fp):
+                    print(f"不可以是个文件夹: {fp}")
+                    return True
+
                 send_message = pickle.dumps([4, fp, notes])
 
-            elif len(visited) + 1 == len(li):
+            elif len(visited) >= 2 and len(visited) + 1 == len(li):
                 for i in range(len(li)):
                     if i not in visited:
                         address = int(li[i])
@@ -173,6 +203,10 @@ def send_request():
 
                 if fp == "" or address == -1:
                     print("非法输入")
+                    return True
+
+                if not os.path.isdir(fp):
+                    print(f"不是个文件夹: {fp}")
                     return True
 
                 send_message = pickle.dumps([5, address, fp, notes])
@@ -190,6 +224,10 @@ def send_request():
         elif li[0] == "close":
             send_message = pickle.dumps([8])
             close = True
+
+        elif li[0] == "help":
+            print(help_documents)
+            return True
 
         else:
             print("未知指令")
@@ -223,5 +261,6 @@ def send_request():
 
 if __name__ == "__main__":
     # sys.stdin = open('in.txt', 'r')
+    IO.to_humanized_size(6)
     while send_request():
         pass

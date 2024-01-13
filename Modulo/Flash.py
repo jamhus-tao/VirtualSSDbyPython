@@ -62,13 +62,6 @@ class Flash:
     def execute(self, **msg) -> None:
         """执行线程"""
         _receiver = msg.get("receiver")
-        if msg.get("instruct", self.INSTRUCT_EXIT) == self.INSTRUCT_EXIT:
-            if isinstance(_receiver, Waiter):
-                _receiver.dec()
-            elif isinstance(_receiver, Queue):
-                _receiver.put(None)
-            self.close()
-            return
         _data = self.__instruct.get(
             msg.get("instruct"),
             lambda *args, **kwargs: None
