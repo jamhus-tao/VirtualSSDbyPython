@@ -30,7 +30,7 @@ class Showing:
         )
         self.ax.add_patch(rect)
         for st, values in self.mapping.free_address_block.items():
-            # print(st,values)
+            #print(st,values)
             lleft = st // row
             rright = (st + values - 1) // row
             for i in range(row):
@@ -79,7 +79,7 @@ class Showing:
             frames=100,
             interval=interval,
             blit=False,
-            repeat=False
+            repeat=True
         )  # 创建动画效果
         # plt.grid()
         plt.show()
