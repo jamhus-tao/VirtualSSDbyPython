@@ -243,5 +243,6 @@ def send_request():
 
 if __name__ == "__main__":
     # sys.stdin = open('in.txt', 'r')
+    IO.to_humanized_size(6)
     while send_request():
         pass

@@ -116,7 +116,13 @@ def parse_humanized_size(s) -> int:
 
 def to_humanized_size(i: int) -> str:
     """转换为人性化文件大小表达式"""
-    raise NotImplementedError()
+
+    t = i
+    for index, (key, value) in enumerate(__BITS.items()):
+        if t < 1024 or index == len(__BITS) - 1:
+            return str("{:.3f}".format(t)) + key
+
+        t /= 1024
 
 
 def parse_time_seconds(s) -> float:
