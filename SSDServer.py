@@ -7,6 +7,7 @@ from datetime import datetime
 from Modulo.GlobalConfig import Configer
 from Modulo.SSD import SSD
 from Modulo.Showing import Showing
+from Modulo import IO
 
 
 class Server:
@@ -77,6 +78,7 @@ class Server:
                 _result += "{:<20}{:<20}{:<20}{:<30}{}\n".format(
                     str(_address),
                     self.__Dict[_address][0],
+                    # IO.to_humanized_size(self.__Dict[_address][1]),
                     str(self.__Dict[_address][1]),
                     str(self.__Dict[_address][2]).split(".")[0],
                     self.__Dict[_address][3]
@@ -86,9 +88,12 @@ class Server:
                 _result += "(empty)\n"
 
         elif _li[0] == 2:
-            _address = self.__ssd.create(_li[2])
-            self.__Dict[_address] = (_li[1], _li[2], datetime.now(), _li[3])
-            _result = "创建成功"
+            try:
+                _address = self.__ssd.create(_li[2])
+                self.__Dict[_address] = (_li[1], _li[2], datetime.now(), _li[3])
+                _result = "创建成功"
+            except Exception as e:
+                _result = "Error: " + str(e)
 
         elif _li[0] == 3:
             try:
@@ -138,11 +143,11 @@ class Server:
         self.__ssd.copy_in(_fp, _address)
         self.__Dict[_address] = (os.path.basename(_fp), _size, datetime.now(), _notes)
         # print(os.path.basename(_fp))
-        return "复制成功"
+        return f"复制成功，文件 {_fp} 已写入 SSD中"
 
     def __copy_out(self, _address, _fp):
         self.__ssd.copy_out(_address, os.path.join(_fp, self.__Dict[_address][0]), self.__Dict[_address][1])
-        return "复制成功"
+        return f"复制成功，已写入 {_fp}"
 
     def __write_dict(self):
         if not os.path.exists(self.__cfg.PATH):
