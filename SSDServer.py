@@ -78,8 +78,8 @@ class Server:
                 _result += "{:<20}{:<20}{:<20}{:<30}{}\n".format(
                     str(_address),
                     self.__Dict[_address][0],
-                    # IO.to_humanized_size(self.__Dict[_address][1]),
-                    str(self.__Dict[_address][1]),
+                    IO.to_humanized_size(self.__Dict[_address][1]),
+                    # str(self.__Dict[_address][1]),
                     str(self.__Dict[_address][2]).split(".")[0],
                     self.__Dict[_address][3]
                 )
