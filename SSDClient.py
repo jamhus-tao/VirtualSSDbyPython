@@ -55,7 +55,7 @@ def send_request():
 
         elif p == 2:
             name = input("请输入新建文件的文件名：\n> ")
-            size = IO.input_int("请输入新建文件的大小：\n> ")
+            size = IO.input_humanized_size("请输入新建文件的大小：\n> ")
             notes = input("请输入新建文件的备注：\n> ")
 
             send_message = pickle.dumps([2, name, size, notes])
@@ -109,13 +109,20 @@ def send_request():
                 notes = ""
 
             try:
-                send_message = pickle.dumps([2, li[1], int(li[2]), notes])
-            except ValueError:
-                print("非法输入，第三个参数应该是一个整数")
-                return True
+                li[1], li[2]
             except IndexError:
                 print("非法输入，参数输入不足")
                 return True
+
+            if IO.is_int(li[2]):
+                li[2] = int(li[2])
+            elif IO.is_humanized_size(li[2]):
+                li[2] = IO.parse_humanized_size(li[2])
+            else:
+                print("非法输入，第三个参数无法识别")
+                return True
+
+            send_message = pickle.dumps([2, li[1], li[2], notes])
 
         elif li[0] == "del":
             try:
@@ -150,7 +157,11 @@ def send_request():
                     continue
 
                 temp = li[i]
-                if temp[0] == "\"" and temp[-1] == "\"":
+                if li[i] == "\"":
+                    print("非法输入")
+                    return True
+
+                if len(li[i]) >= 2 and temp[0] == "\"" and temp[-1] == "\"":
                     temp = temp[1:-1]
 
                 temp = os.path.abspath(temp)
@@ -163,9 +174,14 @@ def send_request():
                 if fp == "":
                     print("非法输入")
                     return True
+
+                if os.path.isdir(fp):
+                    print(f"不可以是个文件夹: {fp}")
+                    return True
+
                 send_message = pickle.dumps([4, fp, notes])
 
-            elif len(visited) + 1 == len(li):
+            elif len(visited) >= 2 and len(visited) + 1 == len(li):
                 for i in range(len(li)):
                     if i not in visited:
                         address = int(li[i])
@@ -173,6 +189,10 @@ def send_request():
 
                 if fp == "" or address == -1:
                     print("非法输入")
+                    return True
+
+                if not os.path.isdir(fp):
+                    print(f"不是个文件夹: {fp}")
                     return True
 
                 send_message = pickle.dumps([5, address, fp, notes])
