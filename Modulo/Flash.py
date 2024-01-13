@@ -1,8 +1,8 @@
 import os
 from queue import Queue
+from threading import Thread
 
 from Modulo.Atomic import Waiter
-
 from Modulo.Exceptions import *
 
 
@@ -56,35 +56,52 @@ class Flash:
             self.INSTRUCT_ERASE_INTERVAL: self.__erase_pages,
         }
 
+        self.__waiter = Waiter()
         self.listener()
 
+    def execute(self, **msg) -> None:
+        """执行线程"""
+        _receiver = msg.get("receiver")
+        if msg.get("instruct", self.INSTRUCT_EXIT) == self.INSTRUCT_EXIT:
+            if isinstance(_receiver, Waiter):
+                _receiver.dec()
+            elif isinstance(_receiver, Queue):
+                _receiver.put(None)
+            self.close()
+            return
+        _data = self.__instruct.get(
+            msg.get("instruct"),
+            lambda *args, **kwargs: None
+        )(
+            *msg.get("args", ()),
+            **msg.get("kwargs", {})
+        )
+        if isinstance(_receiver, Waiter):
+            _receiver.dec()
+        elif isinstance(_receiver, Queue):
+            _receiver.put(_data)
+        self.__waiter.dec()
+
     def listener(self) -> None:
-        """伺服进程. 处理来自 SSD 的 flash 调用请求"""
+        """监听程序. 处理来自 SSD 的 flash 调用请求"""
         while True:
             _msg = self._queue.get()
             # 通信协议: dict{"instruct"=INSTRUCT_EXIT, "receiver"=None, "args"=(), "kwargs"={}}
-            _receiver = _msg.get("receiver")
             if _msg.get("instruct", self.INSTRUCT_EXIT) == self.INSTRUCT_EXIT:
+                self.close()
+                _receiver = _msg.get("receiver")
                 if isinstance(_receiver, Waiter):
                     _receiver.dec()
                 elif isinstance(_receiver, Queue):
                     _receiver.put(None)
-                self.close()
                 return
-            _data = self.__instruct.get(
-                _msg.get("instruct"),
-                lambda *args, **kwargs: None
-            )(
-                *_msg.get("args", ()),
-                **_msg.get("kwargs", {})
-            )
-            if isinstance(_receiver, Waiter):
-                _receiver.dec()
-            elif isinstance(_receiver, Queue):
-                _receiver.put(_data)
+            self.__waiter.inc()
+            _thread = Thread(target=self.execute, kwargs=_msg)
+            _thread.start()
 
     def close(self):
         """关闭 flash"""
+        self.__waiter.wait()
         self.file.close()
 
     def __init_flash(self):
