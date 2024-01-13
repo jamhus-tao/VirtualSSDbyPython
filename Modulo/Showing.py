@@ -81,5 +81,5 @@ class Showing:
             blit=False,
             repeat=False
         )  # 创建动画效果
-        plt.grid()
+        # plt.grid()
         plt.show()
