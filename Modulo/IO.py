@@ -1,14 +1,44 @@
 import os
 
 
+def is_humanized_size(_x: str) -> bool:
+    if _x[-1] in __BITS:
+        try:
+            int(_x[:-1])
+            return True
+        except ValueError:
+            return False
+
+    else:
+        return False
+
+
+def is_int(_x: str) -> bool:
+    try:
+        int(_x)
+        return True
+    except ValueError:
+        return False
+
+
+def input_humanized_size(s: str = "") -> int:
+    while True:
+        _x = input(s)
+        if is_humanized_size(_x):
+            return parse_humanized_size(_x)
+        elif is_int(_x):
+            return int(_x)
+        else:
+            print("无法识别的输入，请重新输入")
+
+
 def input_int(s: str = "") -> int:
     while True:
         _x = input(s)
-        try:
-            _x = int(_x)
-            return _x
-        except Exception as e:
-            print(f"Error:{e},请重新输入")
+        if is_int(_x):
+            return int(_x)
+        else:
+            print(f"不是个整数，请重新输入")
 
 
 def input_name(s: str = ""):
