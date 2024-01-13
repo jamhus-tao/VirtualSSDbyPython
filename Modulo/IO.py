@@ -2,14 +2,10 @@ import os
 
 
 def is_humanized_size(_x: str) -> bool:
-    if _x[-1] in __BITS:
-        try:
-            int(_x[:-1])
-            return True
-        except ValueError:
-            return False
-
-    else:
+    try:
+        parse_humanized_size(_x)
+        return True
+    except ValueError:
         return False
 
 
@@ -24,12 +20,17 @@ def is_int(_x: str) -> bool:
 def input_humanized_size(s: str = "") -> int:
     while True:
         _x = input(s)
-        if is_humanized_size(_x):
-            return parse_humanized_size(_x)
-        elif is_int(_x):
-            return int(_x)
-        else:
-            print("无法识别的输入，请重新输入")
+        try:
+            _x = parse_humanized_size(_x)
+            break
+        except ValueError:
+            try:
+                _x = int(_x)
+                break
+            except ValueError:
+                print("无法识别的输入，请重新输入")
+
+    return _x
 
 
 def input_int(s: str = "") -> int:
@@ -111,7 +112,7 @@ def parse_humanized_size(s) -> int:
     while _i >= 0 and s[_i] in __BITS:
         _bits += __BITS[s[_i]]
         _i -= 1
-    return int(float(s[:_i + 1])) << _bits
+    return int(float(s[:_i + 1]) * (1 << _bits))
 
 
 def to_humanized_size(i: int) -> str:
@@ -120,7 +121,10 @@ def to_humanized_size(i: int) -> str:
     t = i
     for index, (key, value) in enumerate(__BITS.items()):
         if t < 1024 or index == len(__BITS) - 1:
-            return str("{:.3f}".format(t)) + key
+            tkey = key
+            if tkey != 'B':
+                tkey += 'B'
+            return str("{:.3f}".format(t)) + tkey
 
         t /= 1024
 
