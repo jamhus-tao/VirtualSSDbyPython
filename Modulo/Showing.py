@@ -8,10 +8,11 @@ from matplotlib.animation import FuncAnimation
 class Showing:
     def __init__(self, mapping: Mapping):
         self.mapping = mapping
-        plt.rcParams["font.family"] = "FangSong"  # 支持中文显示
+        #plt.rcParams["font.family"] = "FangSong"  # 支持中文显示
         self.fig = plt.figure(figsize=(5, 5))
         self.ax = self.fig.add_subplot(1, 1, 1)
         plt.gca().axes.get_xaxis().set_visible(False)  # x 轴不可见
+        self.fig.canvas.manager.set_window_title('SSD使用监视器')
 
     def update(self, _):
         plt.cla()  # 清空原有内容
