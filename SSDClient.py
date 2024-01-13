@@ -150,7 +150,11 @@ def send_request():
                     continue
 
                 temp = li[i]
-                if temp[0] == "\"" and temp[-1] == "\"":
+                if li[i] == "\"":
+                    print("非法输入")
+                    return True
+
+                if len(li[i]) >= 2 and temp[0] == "\"" and temp[-1] == "\"":
                     temp = temp[1:-1]
 
                 temp = os.path.abspath(temp)
@@ -163,9 +167,14 @@ def send_request():
                 if fp == "":
                     print("非法输入")
                     return True
+
+                if os.path.isdir(fp):
+                    print(f"不可以是个文件夹: {fp}")
+                    return True
+
                 send_message = pickle.dumps([4, fp, notes])
 
-            elif len(visited) + 1 == len(li):
+            elif len(visited) >= 2 and len(visited) + 1 == len(li):
                 for i in range(len(li)):
                     if i not in visited:
                         address = int(li[i])
@@ -173,6 +182,10 @@ def send_request():
 
                 if fp == "" or address == -1:
                     print("非法输入")
+                    return True
+
+                if not os.path.isdir(fp):
+                    print(f"不是个文件夹: {fp}")
                     return True
 
                 send_message = pickle.dumps([5, address, fp, notes])
