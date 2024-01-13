@@ -73,7 +73,7 @@ class Showing:
 
     def work(self, interval: int = 300):
         # plt.axis('off')
-        _ = FuncAnimation(
+        _ani = FuncAnimation(
             self.fig,
             self.update,
             frames=100,
