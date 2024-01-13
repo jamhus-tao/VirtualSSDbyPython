@@ -16,6 +16,7 @@ help_documents = """查看 SSD 使用情况: ls
 帮助: help
 """
 
+
 def connect(close):
     host = "127.0.0.1"
     port = 5555
@@ -229,7 +230,7 @@ def send_request():
             return True
 
         else:
-            print("未知指令")()
+            print("未知指令")
             return True
 
     condition, client_socket = connect(close)
